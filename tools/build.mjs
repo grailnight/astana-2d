@@ -9,6 +9,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fragment = process.argv.includes('--fragment');
 let html = readFileSync(join(root, 'index.html'), 'utf8');
 
+// Однофайловая сборка не устанавливается как приложение: убираем манифест и иконки-файлы
+html = html.replace(/<link rel="(manifest|icon|apple-touch-icon)"[^>]*>\s*/g, '');
+
 const css = readFileSync(join(root, 'style.css'), 'utf8');
 html = html.replace('<link rel="stylesheet" href="style.css">', () => `<style>\n${css}</style>`);
 html = html.replace(/<script src="(src\/[\w.]+)"><\/script>/g, (_, src) => {

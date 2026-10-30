@@ -113,7 +113,7 @@ const Main = (() => {
     }
     near = interactables();
     UI.hint(near ? near.label : null);
-    if (Input.take('action') && near) { Sfx.play('click'); const n = near; runEvent(() => n.run()); }
+    if (Input.take('action') && near) { Sfx.play('click'); Device.buzz(12); const n = near; runEvent(() => n.run()); }
     if (Input.take('phone')) { Sfx.play('click'); UI.openPhone('quests'); }
     if (Input.take('map')) { Sfx.play('click'); UI.openPhone('map'); }
   }
@@ -137,6 +137,7 @@ const Main = (() => {
     Ents.spawnCars(26);
     document.getElementById('hud').hidden = false;
     playing = true;
+    Device.keepAwake();
     snapCam = true;
     district = World.district(Ents.player.x, Ents.player.y);
     if (!startPlay.bound) {
@@ -161,6 +162,11 @@ const Main = (() => {
 
   async function boot(data) {
     World.gen();
+    Device.init();
+    // установка на главный экран (PWA) — только когда игра открыта с сервера, а не одним файлом
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http') && document.querySelector('link[rel="manifest"]')) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
     Render.init(document.getElementById('view'));
     Input.init();
     UI.initHud();

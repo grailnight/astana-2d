@@ -52,7 +52,10 @@ const Sfx = (() => {
     ring: () => { for (let i = 0; i < 3; i++) beep(1046, 0.08, 'sine', 0.08, i * 0.12); },
   };
 
+  const BUZZ = { coin: 15, error: [30, 40, 30], honk: 25, success: [15, 30, 15], ring: [40, 60, 40] };
+
   function play(name) {
+    if (BUZZ[name]) Device.buzz(BUZZ[name]);
     if (!prefs.sfx || !SOUNDS[name]) return;
     try { SOUNDS[name](); } catch (e) { /* звук не критичен */ }
   }

@@ -22,7 +22,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body {
-  height: 100%; margin: 0; overflow: hidden;
+  height: 100%; margin: 0; overflow: hidden; -webkit-touch-callout: none;
   background: var(--night); color: var(--snow);
   font-family: var(--font-body); font-size: 15px; line-height: 1.4;
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
@@ -133,6 +133,8 @@ img { image-rendering: pixelated; }
   font-family: var(--font-display); font-weight: 800; font-size: 11px; letter-spacing: 0.04em;
 }
 #btn-act.live { background: var(--sky); color: var(--ink); box-shadow: 0 0 0 4px rgba(46, 196, 230, 0.3); }
+#btn-act { white-space: nowrap; overflow: hidden; padding: 0; font-size: 10.5px; }
+.modal #touch { display: none; }
 #touch:not([hidden]) ~ #hint { bottom: calc(126px + env(safe-area-inset-bottom, 0px)); }
 
 /* ---------- окна ---------- */
@@ -395,6 +397,34 @@ img { image-rendering: pixelated; }
   .objective b { font-size: 9.5px; }
   .toast { font-size: 12.5px; padding: 6px 10px; }
   #toasts { gap: 4px; }
+}
+
+/* Телефон в альбомной ориентации: экран низкий, поэтому всё компактнее */
+@media (max-height: 520px) and (orientation: landscape) {
+  .hud-l { max-width: min(360px, 40vw); }
+  .objective { font-size: 11.5px; }
+  .sheet { max-height: 100%; width: min(680px, 100%); }
+  .loc-hero { padding-top: 8px; }
+  .loc-art { max-height: 58px; }
+  .loc-head { padding: 6px 18px 2px; }
+  .loc-head h2 { font-size: 18px; margin-bottom: 4px; }
+  .loc-desc { margin: 4px 18px 8px; font-size: 13px; }
+  .act { padding: 8px 12px; }
+  .dlg { padding: 10px 14px; gap: 10px; width: min(820px, calc(100% - 20px)); }
+  .dlg-face .portrait { width: 48px; height: 48px; }
+  .dlg-text { font-size: 14.5px; min-height: 0; }
+  .dlg-opts { flex-direction: row; flex-wrap: wrap; }
+  .opt { flex: 1 1 40%; padding: 7px 10px; font-size: 13.5px; }
+  .title-card { padding: 14px 18px; margin-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .title-card h1 { font-size: clamp(32px, 9vh, 52px); }
+  .title-card p { margin-bottom: 10px; font-size: 13.5px; }
+  .cr-prev canvas, .wr-prev { width: 72px; }
+  .ings { grid-template-columns: repeat(5, 1fr); }
+  .ing { padding: 8px; font-size: 13px; }
+  .pad { height: 50px; }
+  .mg { gap: 6px; }
+  .q-word { margin: 4px 0 10px; }
+  .q-opt { padding: 10px; }
 }
 
 @keyframes sheetUp { from { transform: translate(-50%, 24px); opacity: 0; } }

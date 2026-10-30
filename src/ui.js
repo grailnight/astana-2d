@@ -16,6 +16,7 @@ const UI = (() => {
   // Во время мини-игр и полноэкранных сцен уведомления прячем, чтобы не мешали
   function syncFocus() {
     document.body.classList.toggle('focus', modals.some((m) => m.matches('.mg, .ending, .creator, .title-screen')));
+    document.body.classList.toggle('modal', modals.length > 0);
   }
   function pushModal(el) { layer().appendChild(el); modals.push(el); Input.clear(); syncFocus(); }
   function popModal(el) {
@@ -183,13 +184,21 @@ const UI = (() => {
     $('#objective').hidden = !o;
   }
 
+  // Короткое слово для круглой кнопки действия на телефоне
+  const ACT_WORDS = [['Войти', 'ВОЙТИ'], ['Говорить', 'ПРИВЕТ'], ['Заговорить', 'ПРИВЕТ'], ['Забрать', 'ВЗЯТЬ'], ['Доставить', 'ОТДАТЬ'],
+    ['Подъезд', 'ДВЕРЬ'], ['Смотреть', 'ГЛЯНУТЬ'], ['Автобус', 'АВТОБУС'], ['Погладить', 'ГЛАДИТЬ'], ['Посидеть', 'СЕСТЬ'], ['Бросить', 'МОНЕТКА'], ['Юрта', 'ЮРТА']];
+  function actLabel(text) {
+    const w = ACT_WORDS.find(([k]) => text.startsWith(k));
+    return w ? w[1] : 'E';
+  }
+
   function hint(text) {
     const el = $('#hint');
     if (!text) { el.hidden = true; $('#btn-act').classList.remove('live'); hudCache.hint = null; return; }
     if (hudCache.hint !== text) {
       hudCache.hint = text;
       el.innerHTML = `<span class="kbd">E</span>${escapeHtml(text)}`;
-      $('#btn-act').textContent = text.split(':')[0].split(' ')[0].toUpperCase().slice(0, 9);
+      $('#btn-act').textContent = actLabel(text);
     }
     el.hidden = false;
     $('#btn-act').classList.add('live');
@@ -414,6 +423,8 @@ const UI = (() => {
     if (tab === 'settings') {
       return `<div class="set-row"><span>Звуки</span><button class="btn small ${Sfx.prefs.sfx ? '' : 'ghost'}" data-pref="sfx">${Sfx.prefs.sfx ? 'Вкл' : 'Выкл'}</button></div>
         <div class="set-row"><span>Музыка (домбра)</span><button class="btn small ${Sfx.prefs.music ? '' : 'ghost'}" data-pref="music">${Sfx.prefs.music ? 'Вкл' : 'Выкл'}</button></div>
+        ${Device.touch() ? `<div class="set-row"><span>Вибрация</span><button class="btn small ${Device.prefs.vibrate ? '' : 'ghost'}" data-vib>${Device.prefs.vibrate ? 'Вкл' : 'Выкл'}</button></div>` : ''}
+        ${Device.canFullscreen() ? `<div class="set-row"><span>Полный экран</span><button class="btn small ${Device.isFullscreen() ? '' : 'ghost'}" data-fs>${Device.isFullscreen() ? 'Вкл' : 'Выкл'}</button></div>` : ''}
         <div class="set-row"><span>Сохранить игру</span><button class="btn small" data-save>Сохранить</button></div>
         <div class="set-row"><span>Начать заново</span><button class="btn small danger" data-reset>Новая игра</button></div>
         <h3>Управление</h3>
@@ -438,6 +449,8 @@ const UI = (() => {
     const pref = t.closest('[data-pref]');
     if (pref) { Sfx.setPref(pref.dataset.pref, !Sfx.prefs[pref.dataset.pref]); renderPhone('settings'); return; }
     if (t.closest('[data-save]')) { G.save(); toast('Игра сохранена', 'good'); return; }
+    if (t.closest('[data-vib]')) { Device.setPref('vibrate', !Device.prefs.vibrate); Device.buzz(30); renderPhone('settings'); return; }
+    if (t.closest('[data-fs]')) { if (!await Device.toggleFullscreen()) toast('Браузер не разрешил полный экран. Добавь игру на главный экран — там она открывается без рамок.', 'info'); setTimeout(() => phoneEl && renderPhone('settings'), 300); return; }
     const rs = t.closest('[data-reset]');
     if (rs) {
       if (!resetArm) { resetArm = true; rs.textContent = 'Точно? Нажми ещё раз'; setTimeout(() => { resetArm = false; }, 3000); return; }
@@ -519,10 +532,11 @@ const UI = (() => {
         <div class="title-card">
           <div class="eyebrow">Жаңа өмір · Новая жизнь</div>
           <h1>АСТАНА</h1>
-          <p>Ты приезжаешь в столицу с одной сумкой и 15 000 тенге. Найди работу, друзей и свой дом — и переживи первую зиму.</p>
+          <p>Ты приезжаешь в столицу с одной сумкой и 15 000 тенге. Найди работу, друзей и свой дом — и переживи первую зиму.</p>
           <div class="title-btns">
             ${hasSave ? '<button class="btn big" data-go="load">Продолжить</button>' : ''}
             <button class="btn big ${hasSave ? 'ghost' : ''}" data-go="new">Новая игра</button>
+            ${Device.touch() && Device.canFullscreen() && !Device.isFullscreen() ? '<button class="btn ghost" data-fs>На весь экран</button>' : ''}
           </div>
         </div></div>`);
       pushModal(el);
@@ -538,7 +552,12 @@ const UI = (() => {
         raf = requestAnimationFrame(draw);
       };
       draw();
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', async (e) => {
+        if (e.target.closest('[data-fs]')) {
+          const fs = e.target.closest('[data-fs]');
+          if (await Device.toggleFullscreen()) fs.remove(); else fs.textContent = 'Полный экран недоступен здесь';
+          return;
+        }
         const b = e.target.closest('[data-go]');
         if (!b) return;
         Sfx.unlock(); Sfx.play('click');

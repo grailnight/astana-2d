@@ -103,6 +103,8 @@ const Render = (() => {
     drawWater(vw, vh);
 
     const season = G.season();
+    trackFootprints(season);
+    drawFootprints();
     const vx0 = camX - 40, vx1 = camX + vw + 40, vy0 = camY - 40, vy1 = camY + vh + 260;
     const list = [];
     for (const b of World.buildings) {
@@ -124,6 +126,7 @@ const Render = (() => {
     const key = JSON.stringify(look);
     if (key !== playerKey) { playerKey = key; playerSheet = Art.charSheet(look); }
 
+    drawShadows(list);
     let playerIdx = -1;
     list.forEach((it, i) => {
       if (it.b) blit(it.b.sprite, it.b.sx, it.b.sy, it.b.sw, it.b.sh);
@@ -154,11 +157,99 @@ const Render = (() => {
       }
     }
 
+    drawClouds(dt);
     drawWeather(dt);
     drawNight(list);
+    drawGrade();
     drawLabels(info);
     drawMarkers(info);
     drawCold();
+  }
+
+  /* ---------- тени, облака, следы, цветокоррекция ---------- */
+
+  // Солнце светит с юго-запада: тень от дома ложится вправо-вниз на землю
+  function drawShadows(list) {
+    const night = darkness();
+    const a = 0.24 * (1 - night * 1.2);
+    if (a <= 0.02) return;
+    ctx.fillStyle = `rgba(14,24,44,${a})`;
+    for (const it of list) {
+      const b = it.b;
+      if (!b) continue;
+      const fd = b.h * TILE;
+      const L = Math.min(b.landmark ? 26 : 44, 8 + b.sh * 0.22);
+      const x = b.sx + b.sw, top = b.base - fd;
+      ctx.beginPath();
+      ctx.moveTo(sx(x), sy(top + 4));
+      ctx.lineTo(sx(x + L), sy(top + 4 + L * 0.35));
+      ctx.lineTo(sx(x + L), sy(b.base + L * 0.35));
+      ctx.lineTo(sx(b.sx + L * 0.6), sy(b.base + L * 0.35));
+      ctx.lineTo(sx(b.sx), sy(b.base));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(10,16,30,0.18)';
+    for (const it of list) if (it.b) ctx.fillRect(sx(it.b.sx), sy(it.b.base), it.b.sw * S, 2 * S);
+  }
+
+  let cloudCv = null;
+  const clouds = Array.from({ length: 7 }, (_, i) => ({ x: hash2(i, 1) * MAP_W * TILE, y: hash2(i, 2) * MAP_H * TILE, s: 0.7 + hash2(i, 3) * 0.8 }));
+  function drawClouds(dt) {
+    const kind = G.s.weather.kind;
+    if (kind === 'buran' || darkness() > 0.4) return;
+    if (!cloudCv) {
+      cloudCv = makeCanvas(160, 100);
+      const g = cloudCv.getContext('2d');
+      for (const [x, y, r] of [[50, 55, 38], [90, 45, 44], [125, 58, 30], [75, 68, 34]]) {
+        const gr = g.createRadialGradient(x, y, 2, x, y, r);
+        gr.addColorStop(0, 'rgba(10,20,40,1)'); gr.addColorStop(1, 'rgba(10,20,40,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, 160, 100);
+      }
+    }
+    const a = kind === 'clear' ? 0.09 : 0.14;
+    ctx.globalAlpha = a;
+    const W = MAP_W * TILE, H = MAP_H * TILE;
+    for (const c of clouds) {
+      c.x += dt * 7; c.y += dt * 2;
+      if (c.x > W + 200) c.x = -400; if (c.y > H + 200) c.y = -300;
+      ctx.drawImage(cloudCv, sx(c.x), sy(c.y), 160 * 2.4 * c.s * S, 100 * 2.4 * c.s * S);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  const prints = [];
+  let lastPrint = null, printSide = 0;
+  function trackFootprints(season) {
+    const p = Ents.player;
+    if (season !== 'winter') { prints.length = 0; return; }
+    if (!lastPrint || Math.hypot(p.x - lastPrint.x, p.y - lastPrint.y) > 7) {
+      const t = World.tile(Math.floor(p.x / TILE), Math.floor((p.y - 2) / TILE));
+      if (t !== World.T.ROAD && t !== World.T.BRIDGE && t !== World.T.WATER) {
+        printSide ^= 1;
+        prints.push({ x: p.x + (printSide ? 2 : -2) * (p.dir === 0 || p.dir === 3 ? 1 : 0), y: p.y - 1 + (printSide ? 1 : -1) * (p.dir === 1 || p.dir === 2 ? 1 : 0), t: time });
+        if (prints.length > 160) prints.shift();
+      }
+      lastPrint = { x: p.x, y: p.y };
+    }
+  }
+  function drawFootprints() {
+    for (const f of prints) {
+      const age = time - f.t;
+      if (age > 30) continue;
+      ctx.fillStyle = `rgba(120,140,165,${0.45 * (1 - age / 30)})`;
+      ctx.fillRect(sx(f.x - 1), sy(f.y - 1), 2 * S, 2 * S);
+    }
+  }
+
+  // Цвет дня: тёплое утро, холодный зимний день, лёгкая виньетка
+  function drawGrade() {
+    const h = G.hour();
+    if (h > 6 && h < 9.5) { ctx.fillStyle = `rgba(255,170,140,${Math.sin((h - 6) / 3.5 * Math.PI) * 0.08})`; ctx.fillRect(0, 0, VW, VH); }
+    if (G.season() === 'winter' && darkness() < 0.3) { ctx.fillStyle = 'rgba(150,190,230,0.06)'; ctx.fillRect(0, 0, VW, VH); }
+    const g = ctx.createRadialGradient(VW / 2, VH / 2, Math.min(VW, VH) * 0.45, VW / 2, VH / 2, Math.hypot(VW, VH) * 0.6);
+    g.addColorStop(0, 'rgba(8,14,28,0)'); g.addColorStop(1, 'rgba(8,14,28,0.28)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
   }
 
   function drawWater(vw, vh) {
@@ -189,6 +280,13 @@ const Render = (() => {
       case 'bench': blit(Art.bench(season), d.x - 9, d.y - 11, 18, 12); break;
       case 'bus': blit(Art.busStop(), d.x - 15, d.y - 29, 30, 30); break;
       case 'yurt': blit(Art.yurt(season), d.x - 24, d.y - 39, 48, 40); break;
+      case 'wheel': drawWheel(d, false); break;
+      case 'stele': { const st = Art.stele(); blit(st.cv, d.x - 10, d.y - 118, 20, 120); break; }
+      case 'sign': {
+        ctx.fillStyle = '#3a3f48'; ctx.fillRect(sx(d.x - 0.5), sy(d.y - 22), S, 22 * S);
+        ctx.fillStyle = '#1f5f95'; ctx.fillRect(sx(d.x - 4), sy(d.y - 26), 8 * S, 5 * S);
+        break;
+      }
       case 'cat': blit(Art.cat(), d.x - 6, d.y - 9 - (Math.sin(time * 3) > 0.9 ? 1 : 0), 12, 10); break;
       case 'parked': { const img = Art.car(d.color, false, false); blit(img, d.x - 13, d.y - 13, 26, 16); break; }
       case 'fountain': {
@@ -210,6 +308,39 @@ const Render = (() => {
         break;
       }
       default:
+    }
+  }
+
+  // Колесо обозрения: вращается, ночью горит цветными огнями
+  function drawWheel(d, lightsOnly) {
+    const cx = d.x, cy = d.y - 64, r = 46;
+    const ang = time * 0.12;
+    const cols = ['#e5533d', '#f6c343', '#2ec4e6', '#7cc66b', '#e84393', '#9b59b6'];
+    if (!lightsOnly) {
+      ctx.strokeStyle = '#d6dde3'; ctx.lineWidth = Math.max(1, S * 1.2);
+      ctx.beginPath(); ctx.moveTo(sx(cx - 24), sy(d.y)); ctx.lineTo(sx(cx), sy(cy)); ctx.lineTo(sx(cx + 24), sy(d.y)); ctx.stroke();
+      ctx.lineWidth = Math.max(1, S * 0.6);
+      ctx.beginPath(); ctx.arc(sx(cx), sy(cy), r * S, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(sx(cx), sy(cy), (r - 4) * S, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 12; i++) {
+        const a = ang + (i / 12) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(sx(cx), sy(cy)); ctx.lineTo(sx(cx + Math.cos(a) * r), sy(cy + Math.sin(a) * r)); ctx.stroke();
+      }
+      for (let i = 0; i < 12; i++) {
+        const a = ang + (i / 12) * Math.PI * 2;
+        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+        ctx.fillStyle = cols[i % cols.length];
+        ctx.fillRect(sx(x - 3), sy(y + 1), 6 * S, 5 * S);
+        ctx.fillStyle = 'rgba(200,230,250,0.9)'; ctx.fillRect(sx(x - 2), sy(y + 2), 4 * S, 2 * S);
+      }
+      ctx.fillStyle = '#9aa4ad'; ctx.beginPath(); ctx.arc(sx(cx), sy(cy), 3 * S, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#5d6670'; ctx.fillRect(sx(cx - 26), sy(d.y - 2), 52 * S, 3 * S);
+    } else {
+      for (let i = 0; i < 24; i++) {
+        const a = ang + (i / 24) * Math.PI * 2;
+        ctx.fillStyle = cols[(i + Math.floor(time * 2)) % cols.length];
+        ctx.fillRect(sx(cx + Math.cos(a) * r - 1), sy(cy + Math.sin(a) * r - 1), 3 * S, 3 * S);
+      }
     }
   }
 
@@ -288,6 +419,8 @@ const Render = (() => {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = a * 0.8;
     for (const it of list) {
+      if (it.d && it.d.kind === 'wheel') drawWheel(it.d, true);
+      if (it.d && it.d.kind === 'stele') { const st = Art.stele(); blit(st.lights, it.d.x - 10, it.d.y - 118, 20, 120); }
       if (it.d && it.d.kind === 'lamp') { const s2 = 46; ctx.drawImage(lampGlow, sx(it.d.x - s2 / 2), sy(it.d.y - 27 - s2 / 2), s2 * S, s2 * S); }
       if (it.car) {
         const c = it.car;
@@ -314,7 +447,7 @@ const Render = (() => {
   /* ---------- подписи и маркеры ---------- */
 
   // высота таблички над основанием здания, чтобы она висела на фасаде, а не над игроком
-  const LANDMARK_LABEL_Y = { station: 74, khan: 50, baiterek: 46, akorda: 92, mosque: 84, pyramid: 44, expo: 64, arena: 44 };
+  const LANDMARK_LABEL_Y = { station: 74, khan: 50, baiterek: 46, akorda: 92, mosque: 84, grandMosque: 84, pyramid: 44, expo: 64, arena: 44, oldStation: 84 };
 
   function plate(text, wx, wy, opts = {}) {
     const fs = Math.max(10 * dpr, Math.round((opts.size || 4.6) * S));
@@ -355,6 +488,8 @@ const Render = (() => {
     lines.forEach((l, i) => ctx.fillText(l, x + w / 2, y + fs * 0.3 + i * lh));
   }
 
+  const POIS = [['Центральный парк', 20.5, 26.6], ['Ботанический сад', 7, 42.2], ['Президентский парк', 82, 56.5], ['Площадь «Қазақ Елі»', 97, 41.6], ['Колесо обозрения', 16.5, 37.6]];
+
   function drawLabels(info) {
     const p = Ents.player;
     for (const b of World.buildings) {
@@ -364,6 +499,17 @@ const Render = (() => {
       if (!near) continue;
       if (b.landmark) plate(b.label, lx, b.base - (LANDMARK_LABEL_Y[b.landmark] || 30), { size: 4.2 });
       else plate(b.id === 'realty' && G.s.flags.ownFlat ? 'Мой дом' : b.label, lx, b.base - (b.spr && b.spr.awning ? 27 : 22), { size: 4 });
+    }
+    // синие таблички улиц на перекрёстках, как в городе
+    for (const d of World.decor) {
+      if (d.kind !== 'sign' || Math.abs(d.x - p.x) > 90 || Math.abs(d.y - p.y) > 70) continue;
+      const opt = { size: 2.9, bg: 'rgba(31,95,149,0.96)', color: '#ffffff', border: false, weight: 600 };
+      plate(d.a, d.x, d.y - 36, opt);
+      plate(d.b, d.x, d.y - 30, opt);
+    }
+    for (const [name, x, y] of POIS) {
+      const wx = x * TILE, wy = y * TILE;
+      if (Math.abs(wx - p.x) < 220 && Math.abs(wy - p.y) < 160) plate(name, wx, wy, { size: 3.6, bg: 'rgba(40,90,60,0.9)', color: '#eef6fa', border: false });
     }
     for (const st of World.busStops) {
       if (Math.abs(st.x - p.x) < 200 && Math.abs(st.y - p.y) < 160) plate('Аялдама · ' + st.name, st.x, st.y - 34, { size: 3.4, bg: 'rgba(42,111,151,0.95)', color: '#eef6fa', border: false });
@@ -410,7 +556,7 @@ const Render = (() => {
     const s = 9 * dpr;
     ctx.beginPath(); ctx.moveTo(s * 1.6, 0); ctx.lineTo(-s, -s); ctx.lineTo(-s * 0.4, 0); ctx.lineTo(-s, s); ctx.closePath();
     ctx.fill(); ctx.stroke(); ctx.restore();
-    const meters = (Math.abs(tx - p.x) + Math.abs(ty - p.y)) / TILE * 40;
+    const meters = (Math.abs(tx - p.x) + Math.abs(ty - p.y)) / TILE * 50;
     const txt = meters >= 1000 ? (meters / 1000).toFixed(1).replace('.', ',') + ' км' : Math.round(meters / 10) * 10 + ' м';
     const fs = 11 * dpr;
     ctx.font = `700 ${fs}px Onest, system-ui, sans-serif`;

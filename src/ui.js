@@ -255,7 +255,7 @@ const UI = (() => {
 
   function relLabel(id) {
     const r = G.s.rel[id] || 0;
-    const t = r >= 80 ? 'близкие люди' : r >= 50 ? 'друзья' : r >= 25 ? 'приятели' : r > 0 ? 'знакомые' : 'незнакомы';
+    const t = Romance.isDater(id) ? Romance.stage(id) : r >= 80 ? 'близкие люди' : r >= 50 ? 'друзья' : r >= 25 ? 'приятели' : r > 0 ? 'знакомые' : 'незнакомы';
     return `${t} · ${r}`;
   }
 
@@ -272,7 +272,7 @@ const UI = (() => {
 
   let actBusy = false;
   async function onLocClick(e) {
-    if (actBusy) return;
+    if (actBusy || modals[modals.length - 1] !== locEl) return;
     if (e.target.closest('[data-close]')) { Sfx.play('door'); closeLocation(); return; }
     const npc = e.target.closest('[data-npc]');
     if (npc) {
@@ -311,6 +311,15 @@ const UI = (() => {
     if (top === locEl) { Sfx.play('door'); closeLocation(); }
     else if (top === phoneEl) { popModal(phoneEl); phoneEl = null; }
     else if (top.classList.contains('wardrobe')) { const b = top.querySelector('[data-close]'); if (b) b.click(); }
+  }
+
+  // Системная кнопка «Назад» на Android: true — если что-то закрыли в игре
+  function back() {
+    const top = modals[modals.length - 1];
+    if (!top) return false;
+    if (top === locEl || top === phoneEl || top.classList.contains('wardrobe')) { escape(); return true; }
+    if (top.classList.contains('title-screen') || top.classList.contains('creator')) return false;
+    return true; // диалоги и мини-игры назад не закрываем, просто не выходим из игры
   }
 
   function closeAll() {
@@ -436,6 +445,7 @@ const UI = (() => {
 
   let resetArm = false;
   async function onPhoneClick(e) {
+    if (modals[modals.length - 1] !== phoneEl) return;
     const t = e.target;
     if (t.closest('[data-close]')) { popModal(phoneEl); phoneEl = null; return; }
     const tab = t.closest('[data-tab]');
@@ -467,7 +477,7 @@ const UI = (() => {
     home: ['Дом', 1], courier: ['Жылдам', 1], coffee: ['Кофе', 1], market: ['Базар', 1], lang: ['Тіл', 0], gym: ['Спортзал', 0],
     mosque: ['Мечеть', 1], hospital: ['Больница', 1], karaoke: ['Караоке', 0], toyhana: ['Той-хана', 1], pyramid: ['Пирамида', 1],
     khan: ['Хан Шатыр', 1], baiterek: ['Байтерек', 1], akorda: ['Акорда', 1], arena: ['Арена', 1], university: ['Универ', 1],
-    office: ['Офис', 0], expo: ['EXPO', 1], mall: ['ТРЦ', 1], station: ['Вокзал', 1], realty: ['Жаңа Үй', 0], shawarma: ['Шаурма', 0], shop: ['24/7', 0],
+    office: ['Офис', 0], expo: ['EXPO', 1], mall: ['ТРЦ', 1], station: ['Нұрлы Жол', 1], station1: ['Астана-1', 1], grandmosque: ['Бас мешіт', 1], realty: ['Жаңа Үй', 0], shawarma: ['Шаурма', 0], shop: ['24/7', 0],
   };
 
   function drawMap(cv) {
@@ -491,6 +501,16 @@ const UI = (() => {
       if (obj && obj.target === b.id) g.fillStyle = '#e5533d';
       g.fillRect(x, y, w, hh);
     }
+    // названия улиц и реки, как на городской карте
+    g.font = `500 ${Math.max(8, Math.round(W / 60))}px Onest, system-ui, sans-serif`;
+    g.fillStyle = 'rgba(238,246,250,0.55)';
+    for (const st of World.streets) {
+      if (st.dir === 'h') { g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(st.name, ((st.x0 + st.x1) / 2 + 3) * TILE * sc, st.y * TILE * sc - 1); }
+      else if (st.y1 - st.y0 > 16) { g.save(); g.translate((st.x + 2) * TILE * sc + 1, ((st.y0 + st.y1) / 2) * TILE * sc); g.rotate(Math.PI / 2); g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(st.name, 0, 0); g.restore(); }
+    }
+    g.font = `italic 600 ${Math.max(9, Math.round(W / 44))}px Onest, system-ui, sans-serif`;
+    g.fillStyle = 'rgba(160,215,245,0.9)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('р. Есіл', 8 * TILE * sc, World.riverC(8) * TILE * sc + 1);
     g.font = `600 ${Math.max(9, Math.round(W / 42))}px Onest, system-ui, sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'top';
     const wide = W >= 440;
@@ -649,7 +669,7 @@ const UI = (() => {
           <div><b>${sum.kaz}</b><span>уровень казахского</span></div>
           <div><b>${escapeHtml(sum.title)}</b><span>должность</span></div>
         </div>
-        <p class="loc-desc">${sum.friends.length ? 'Рядом с тобой: ' + escapeHtml(sum.friends.join(', ')) + '.' : 'Друзей пока немного — но город большой.'}</p>
+        <p class="loc-desc">${sum.partner ? (sum.married ? 'Дома тебя ждёт ' : 'Рядом с тобой — ') + escapeHtml(sum.partner) + '. ' : ''}${sum.friends.length ? 'Друзья: ' + escapeHtml(sum.friends.join(', ')) + '.' : 'Друзей пока немного — но город большой.'}</p>
         <footer class="loc-foot"><button class="btn big" data-close>Продолжить жить в Астане</button></footer></div>`);
       if (G.s.base.female) el.querySelector('.loc-desc').textContent = `За ${sum.days} дн. ты прошла путь от вокзала «Нұрлы Жол» до собственной квартиры на левом берегу.`;
       pushModal(el);
@@ -659,6 +679,6 @@ const UI = (() => {
 
   return {
     say, ask, toast, banner, fade, initHud, updateHud, hint, openLocation, closeLocation, refreshLocation, currentLoc, closeAll,
-    wardrobe, openPhone, title, creator, ending, pushModal, popModal, blocking, drawMap, escape,
+    wardrobe, openPhone, title, creator, ending, pushModal, popModal, blocking, drawMap, escape, back,
   };
 })();

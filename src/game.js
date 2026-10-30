@@ -22,7 +22,7 @@ const G = {
       money: 15000,
       energy: 85, food: 65, mood: 65, maxEnergy: 100,
       xp: { kaz: 0, code: 0, charm: 0, fit: 0 },
-      rel: { gulnar: 0, dauren: 25, aigerim: 0, arman: 0, saule: 0, erzhan: 0, mama: 60 },
+      rel: { gulnar: 0, dauren: 25, aigerim: 0, arman: 0, saule: 0, erzhan: 0, mama: 60, timur: 0, zhanel: 0, alikhan: 0 },
       met: { mama: true, dauren: true },
       inv: {},
       clothes: { owned: ['sport'], outfit: 'sport', outer: null, hat: null },
@@ -34,7 +34,8 @@ const G = {
       rent: { due: 7, amount: 20000, locked: false },
       delivery: null,
       weather: { kind: 'clear', until: 1440 + 9 * 60 + 40 + 240 },
-      pos: { x: 90, y: 74, dir: 3 },
+      pos: { x: 21, y: 11, dir: 0 },
+      love: { partner: null, dates: {}, engaged: false, married: false, lastSeen: {}, weddingDay: null },
       homeId: 'home',
       ended: false,
     };
@@ -155,6 +156,7 @@ const G = {
     if (over === 1) UI.toast('Аренда просрочена! Гульнар-апай ждёт оплату.', 'bad');
     if (over >= 3 && !s.rent.locked && s.homeId === 'home') { s.rent.locked = true; UI.toast('Гульнар-апай закрыла комнату до оплаты долга.', 'bad'); }
     if (s.delivery && s.delivery.stage === 'drop' && this.now() - s.delivery.deadline > 600) { s.delivery = null; UI.toast(`Заказ отменён: ты не ${gx('успел', 'успела')} его доставить.`, 'bad'); }
+    Romance.onNewDay();
     this.events.push(() => Quests.onNewDay());
   },
 

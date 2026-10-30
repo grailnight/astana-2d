@@ -28,8 +28,12 @@ const ITEMS = {
   kazy: { name: 'Казы', desc: 'Конская колбаса, праздничная еда', food: 35, mood: 6 },
   kumys: { name: 'Кумыс', desc: 'Кобылье молоко, бодрит', food: 10, mood: 8, energy: 6 },
   samsa: { name: 'Самса', desc: 'Из тандыра, с мясом', food: 22, mood: 2 },
-  chocolate: { name: 'Шоколад «Казахстан»', desc: 'Тот самый, с синей обёрткой', food: 8, mood: 8 },
-  flowers: { name: 'Цветы', desc: 'Подарок — укрепляет отношения' },
+  chocolate: { name: 'Шоколад «Казахстан»', desc: 'Тот самый, с синей обёрткой', food: 8, mood: 8, gift: true },
+  flowers: { name: 'Цветы', desc: 'Подарок — укрепляет отношения', gift: true },
+  sketchbook: { name: 'Скетчбук', desc: 'Подарок для того, кто рисует', gift: true },
+  film: { name: 'Фотоплёнка', desc: 'Подарок для фотографа', gift: true },
+  book: { name: 'Книга «Абай жолы»', desc: 'Роман Мухтара Ауэзова — подарок для читателя', gift: true },
+  ring: { name: 'Кольцо', desc: 'Для предложения руки и сердца', key: true },
   laptop: { name: 'Ноутбук', desc: 'Можно учить код дома', key: true },
   scooter: { name: 'Электросамокат', desc: 'Скорость передвижения +55%', key: true },
 };
@@ -47,6 +51,9 @@ const NPCS = {
   kid: { name: 'Аружан', look: { female: true, skin: '#f1c9a5', hair: '#2b1d16', hairStyle: 'pony', outfit: 'hoodie', top: '#e84393', bottom: '#3b3b3b' } },
   tourist: { name: 'Марат из Алматы', look: { female: false, skin: '#e0b38c', hair: '#3b2a20', hairStyle: 'short', outfit: 'casual', top: '#e67e22', bottom: '#2a3550', hat: 'cap', hatColor: '#16a085', glasses: true } },
   granny: { name: 'Әже Бибігүл', look: { female: true, skin: '#c68c63', hair: '#cfcfcf', hairStyle: 'bun', outfit: 'chapan', top: '#5b3a6e', bottom: '#2b2b2b', hat: 'kerchief', hatColor: '#f4f0f0' } },
+  timur: { name: 'Тимур', look: { female: false, skin: '#e0b38c', hair: '#2b1d16', hairStyle: 'short', outfit: 'hoodie', top: '#3f6f5a', bottom: '#2a3550', hat: 'beanie', hatColor: '#c0392b' } },
+  zhanel: { name: 'Жанель', look: { female: true, skin: '#e8bf98', hair: '#1d1612', hairStyle: 'bun', outfit: 'suit', top: '#f4f7f8', bottom: '#5b7fa6', tie: '#2ec4e6' } },
+  alikhan: { name: 'Алихан', look: { female: false, skin: '#d4a07a', hair: '#1d1612', hairStyle: 'short', outfit: 'suit', top: '#3b4a5a', bottom: '#2b2f3a', tie: '#f2c14e', glasses: true } },
   dombra: { name: 'Домбрист Ерлан', look: { female: false, skin: '#d4a07a', hair: '#1d1612', hairStyle: 'short', outfit: 'chapan', top: '#7a1f1f', bottom: '#1b1b1b', hat: 'kalpak' } },
 };
 
@@ -284,12 +291,16 @@ const Content = (() => {
       return;
     }
     if (Quests.status('coffee') === 'done' && !st.flags.heardJob) {
-      await say('aigerim', 'Кстати! Мой однокурсник работает в Steppe Digital — это IT-компания на левом берегу, возле EXPO. Они ищут джуна.');
+      await say('aigerim', 'Кстати! Мой однокурсник работает в Steppe Digital — это IT-компания на левом берегу, к югу от Байтерека, рядом с Ареной. Они ищут джуна.');
       await say('aigerim', 'Подтяни программирование в библиотеке университета, купи нормальный костюм в Хан Шатыре — и вперёд. Ты справишься!');
       st.flags.heardJob = true;
       return;
     }
-    if (G.once('talk_aigerim')) G.addRel('aigerim', 4);
+    await Romance.menu('aigerim', aigerimChat);
+  };
+
+  async function aigerimChat() {
+    const st = s();
     const r = st.rel.aigerim;
     await say('aigerim', r < 30 ? pick([
       'Самый популярный заказ зимой — чай с молоком по-казахски. Холодно же!',
@@ -304,8 +315,23 @@ const Content = (() => {
       'Если захочешь погулять вечером — звони. Номер у тебя есть.',
       'Знаешь, раньше я думала, что Астана — холодный город. А теперь — нет.',
     ]));
-    if (r >= 25 && !st.met.aigerimPhone) { st.met.aigerimPhone = true; UI.toast('Айгерим дала свой номер — теперь можно позвонить', 'info'); }
+  }
+
+  const CHATS = {
+    timur: [['Сегодня поймал отличный кадр: дети катаются с горки у Хан Шатыра.', 'Астана — город для широкоугольника. Всё большое.'], ['Хочешь, покажу свои любимые точки для съёмки? Пирамида на рассвете — магия.', 'Я снимаю людей больше, чем здания. Здания не улыбаются.'], ['С тобой интересно гулять — ты смотришь на город как в первый раз.', 'Я тут подумал… ты хорошо получаешься на фото. Особенно когда смеёшься.']],
+    zhanel: [['Мечтаю стать кардиологом. Иронично, да? Сердце — моя специальность.', 'Сегодня было восемь вызовов. Я жива, просто очень хочу спать.'], ['Когда закончу интернатуру, хочу поехать в Алматы, в горы. Хоть на неделю.', 'Пей воду. Это не флирт, это медицинский совет. Ну, почти.'], ['С тобой я забываю про смены. Это опасно для врача.', 'Знаешь, у тебя пульс ускорился. Я профессионал, я замечаю.']],
+    alikhan: [['Видишь, как бульвар ведёт взгляд от Хан Шатыра к Байтереку и Акорде? Это ось города.', 'Мой любимый дом — старый вокзал. В нём есть душа.'], ['Хочу когда-нибудь спроектировать что-то для этого города. Может, мост.', 'Ты замечал, что зимой город выглядит как макет из белого картона?'], ['Ты первый человек, которому я рассказываю про свои проекты без слайдов.', 'Если бы я строил дом, я бы оставил в нём место для тебя. Это метафора. Наверное.']],
   };
+  function datersChat(id) {
+    return async () => {
+      const r = s().rel[id] || 0;
+      const tier = r >= 60 ? 2 : r >= 30 ? 1 : 0;
+      await say(id, pick(CHATS[id][tier]));
+    };
+  }
+  Talk.timur = () => Romance.menu('timur', datersChat('timur'));
+  Talk.zhanel = () => Romance.menu('zhanel', datersChat('zhanel'));
+  Talk.alikhan = () => Romance.menu('alikhan', datersChat('alikhan'));
 
   Talk.arman = async () => {
     if (!s().job.hired) {
@@ -354,12 +380,12 @@ const Content = (() => {
 
   const worldNpcs = [
     {
-      id: 'kid', tx: 12, ty: 18,
+      id: 'kid', tx: 21, ty: 22,
       visible: () => G.flag('catQuest') !== 'done' && G.hour() >= 9 && G.hour() < 20 && Quests.status('arrival') === 'done',
       talk: async () => {
         const q = G.flag('catQuest');
         if (!q) {
-          await say('kid', `${gx('Ағай', 'Апай')}, сіз мысықты көрдіңіз бе? Ой… Вы не видели кота? Рыжий, Барсик зовут. Он убежал в парк на правом берегу, у реки!`);
+          await say('kid', `${gx('Ағай', 'Апай')}, сіз мысықты көрдіңіз бе? Ой… Вы не видели кота? Рыжий, Барсик зовут. Он убежал в Центральный парк, к югу от Кенесары!`);
           G.flag('catQuest', 'asked');
           UI.toast('Новое побочное задание: найти кота Барсика', 'quest');
         } else if (q === 'asked') {
@@ -372,7 +398,7 @@ const Content = (() => {
       },
     },
     {
-      id: 'tourist', tx: 45, ty: 55,
+      id: 'tourist', tx: 48, ty: 60,
       visible: () => !G.flag('touristDone') && G.hour() >= 10 && G.hour() < 19,
       talk: async () => {
         await say('tourist', 'Сәлем! Я из Алматы, первый раз в столице. Сфоткай меня на фоне Байтерека, а?');
@@ -393,10 +419,10 @@ const Content = (() => {
       },
     },
     {
-      id: 'granny', tx: 25, ty: 17,
+      id: 'granny', tx: 41, ty: 22,
       visible: () => G.flag('grannyQuest') !== 'done' && G.flag('grannyQuest') !== 'carrying' && G.hour() >= 9 && G.hour() < 16,
       talk: async () => {
-        const c = await ask('granny', 'Балам, сумки тяжёлые, а внук на работе… Поможешь донести до дома на Абая, 3? Это наверху, у первой дороги.', ['Конечно, әже, давайте!', 'Извините, тороплюсь']);
+        const c = await ask('granny', 'Балам, сумки тяжёлые, а внук на работе… Поможешь донести до дома на Абая, 3? Это к северу от базара, у вокзала.', ['Конечно, әже, давайте!', 'Извините, тороплюсь']);
         if (c === 0) {
           G.flag('grannyQuest', 'carrying');
           UI.toast('Отнеси сумки к дому на Абая, 3', 'quest');
@@ -405,7 +431,7 @@ const Content = (() => {
       },
     },
     {
-      id: 'dombra', tx: 40, ty: 54,
+      id: 'dombra', tx: 41, ty: 59,
       visible: () => G.hour() >= 17 && G.hour() < 22 && s().weather.kind !== 'buran',
       talk: async () => {
         await say('dombra', 'Играю кюй «Адай» Курмангазы. Говорят, в нём слышен топот коней по степи.');
@@ -419,7 +445,8 @@ const Content = (() => {
   /* ---------- курьерская работа ---------- */
 
   const PICKUPS = ['shawarma', 'coffee', 'market', 'shop', 'mall', 'khan'];
-  const DROPS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', 'university', 'office', 'hospital', 'station', 'gym', 'lang', 'realty'];
+  const DROPS_EXTRA = ['university', 'office', 'hospital', 'station', 'station1', 'gym', 'lang', 'realty'];
+  const drops = () => World.buildings.filter((b) => b.res).map((b) => b.id).concat(DROPS_EXTRA);
   const GOODS = { shawarma: 'шаурму', coffee: 'кофе и круассаны', market: 'пакет с базара', shop: 'продукты', mall: 'коробку из магазина', khan: 'покупки из Хан Шатыра' };
 
   function tilesBetween(a, b) {
@@ -429,10 +456,11 @@ const Content = (() => {
 
   function newDelivery() {
     const from = pick(PICKUPS);
-    let to = pick(DROPS);
-    while (tilesBetween(from, to) < 18) to = pick(DROPS);
+    const all = drops();
+    let to = pick(all);
+    for (let i = 0; i < 50 && (tilesBetween(from, to) < 20 || tilesBetween(from, to) > 90); i++) to = pick(all);
     const d = tilesBetween(from, to);
-    return { stage: 'pickup', from, to, reward: Math.round((600 + d * 11) / 50) * 50, deadline: 0, late: false, id: randi(100, 999) };
+    return { stage: 'pickup', from, to, reward: Math.round((600 + d * 9) / 50) * 50, deadline: 0, late: false, id: randi(100, 999) };
   }
 
   async function deliveryAt(bid) {
@@ -507,7 +535,10 @@ const Content = (() => {
     { id: 'mama', when: () => true },
     { id: 'dauren', when: () => true },
     { id: 'gulnar', when: () => s().met.gulnar },
-    { id: 'aigerim', when: () => s().met.aigerimPhone },
+    { id: 'aigerim', when: () => s().met.aigerim && s().rel.aigerim >= 25 },
+    { id: 'timur', when: () => s().met.timur && s().rel.timur >= 25 },
+    { id: 'zhanel', when: () => s().met.zhanel && s().rel.zhanel >= 25 },
+    { id: 'alikhan', when: () => s().met.alikhan && s().rel.alikhan >= 25 },
   ];
 
   async function call(id) {
@@ -535,26 +566,7 @@ const Content = (() => {
       await say('gulnar', left >= 0 ? `Алло, балам. Аренда — до конца дня ${st.rent.due}, это через ${left} дн. Не забудь!` : 'Балам, ты задерживаешь аренду! Приходи скорее.');
       return;
     }
-    if (id === 'aigerim') {
-      const h = G.hour();
-      const opts = ['Просто поболтать'];
-      if (st.rel.aigerim >= 50 && h >= 17 && h < 22) opts.push('Позвать гулять на набережную');
-      opts.push('Пока!');
-      const c = await ask('aigerim', 'Алло? О, привет! Что-то случилось?', opts);
-      if (opts[c] === 'Просто поболтать') {
-        if (G.once('call_aigerim')) G.addRel('aigerim', 3);
-        await say('aigerim', pick(['Я тут рисую плакат с шаром EXPO. Он как планета, правда?', 'У нас сегодня было столько заказов — руки до сих пор пахнут кофе.', gx('Спасибо, что позвонил. Мне приятно.', 'Спасибо, что позвонила. Мне приятно.')]));
-      } else if (opts[c].startsWith('Позвать')) {
-        await say('aigerim', 'С удовольствием! Встретимся у Байтерека через полчаса?');
-        await UI.fade('Вы гуляете по набережной Есиля. Огни, морозный воздух, долгий разговор…', async () => {
-          G.advance(120, { walking: true });
-          const b = World.byId.baiterek;
-          Ents.placePlayer(b.doorX, b.doorY + 2);
-        });
-        G.add('mood', 25); G.addRel('aigerim', 8); st.stats.dates = (st.stats.dates || 0) + 1;
-        await say('aigerim', st.stats.dates >= 3 ? 'Знаешь… мне кажется, ты — лучшее, что случилось со мной в этом городе.' : 'Было здорово. Давай повторим?');
-      }
-    }
+    if (Romance.isDater(id)) await Romance.call(id);
   }
 
   /* ---------- работа ---------- */
@@ -682,7 +694,7 @@ const Content = (() => {
     st.flags.toyDay = d;
     Sfx.play('ring');
     await say('dauren', `Алло, ${P()}! Сидишь? Сядь. Я ЖЕНЮСЬ! На Мадине!`);
-    await say('dauren', `Той — в «Алтын Сарае» на правом берегу, у набережной. ${dayDate(d).getDate()} ${MONTHS[dayDate(d).getMonth()]}, в ${WEEKDAYS_FULL[weekday(d)]}, с шести до одиннадцати вечера.`);
+    await say('dauren', `Той — в «Алтын Сарае» на правом берегу, у набережной. ${dayDate(d).getDate()} ${MONTHS_GEN[dayDate(d).getMonth()]}, в ${WEEKDAYS_FULL[weekday(d)]}, с шести до одиннадцати вечера.`);
     await say('dauren', 'Ты обязан прийти! И оденься нормально — костюм, чапан или что-то красивое. Не в спортивках, умоляю. Мама Мадины строгая.');
   }
 
@@ -760,6 +772,7 @@ const Content = (() => {
     await UI.ending({
       days: st.day, money: st.money, deliveries: st.stats.deliveries, shifts: st.stats.officeShifts + st.stats.baristaShifts,
       friends, title: OFFICE_TITLES[st.job.level] || 'Курьер', kaz: lvl('kaz'),
+      partner: st.love && st.love.partner ? NPCS[st.love.partner].name : null, married: !!(st.love && st.love.married),
     });
   }
 
@@ -896,6 +909,7 @@ const Content = (() => {
     hospital: {
       name: 'Городская больница', kz: 'Емхана', hours: [0, 24], tone: 'calm',
       desc: () => 'Очередь, бахилы, автомат с кофе. Медсестра выглядит уставшей, но улыбается.',
+      npcs: () => (Romance.present('zhanel') ? ['zhanel'] : []),
       actions: () => [
         {
           label: 'Капельница с витаминами', price: 6000, time: 60, sub: 'энергия +45',
@@ -926,6 +940,7 @@ const Content = (() => {
         const st = s();
         const today = Quests.status('toy') === 'active' && st.day === st.flags.toyDay && G.hour() >= 17.5;
         if (today && !st.flags.toyDone) return [{ label: 'Войти на той Даурена и Мадины', sub: 'нужна нарядная одежда', run: wedding }];
+        if (Romance.weddingToday()) return [{ label: `Ваш той: ты и ${NPCS[Romance.love().partner].name}`, sub: 'нужна нарядная одежда', run: Romance.ownWedding }];
         return [{ label: 'Заглянуть в зал', time: 10, sub: 'сегодня закрытое мероприятие', run: async () => { G.advance(10); await say(null, 'Официант вежливо улыбается: «Сегодня у нас закрытый той. Кто-то из Шымкента женится — гостей восемьсот человек!»'); } }];
       },
     },
@@ -1031,6 +1046,7 @@ const Content = (() => {
     expo: {
       name: 'EXPO «Нұр Әлем»', kz: 'Нұр Әлем', hours: [10, 20], tone: 'study',
       desc: () => 'Стеклянный шар высотой с 25-этажный дом. Внутри — музей энергии будущего.',
+      npcs: () => (Romance.present('alikhan') ? ['alikhan'] : []),
       actions: () => [{
         label: 'Музей энергии будущего', price: 2000, time: 90, sub: 'настроение +12 · код +',
         run: async () => {
@@ -1045,7 +1061,40 @@ const Content = (() => {
       desc: () => 'Большой торговый центр: электроника, фудкорт, цветы и самокаты.',
       actions: () => [
         buyItem('scooter', 65000), buyItem('laptop', 140000), buyItem('flowers', 3000),
+        buyItem('sketchbook', 3500), buyItem('film', 4000), buyItem('book', 4500), buyItem('ring', 180000),
         buyFood('Фудкорт', 2400, 50, 3, 0, 30), buyCloth('beanie', 3500),
+      ],
+    },
+    station1: {
+      name: 'Вокзал «Астана-1»', kz: 'Астана-1', hours: [0, 24], tone: 'calm',
+      desc: () => 'Старый вокзал с часами на башне. Сюда приходят поезда с севера и из казахстанских городов, отсюда начинается твоя история.',
+      actions: () => [
+        buyFood('Беляш', 400, 15, 1, 0, 10),
+        buyFood('Чай из термоса у бабушки', 200, 4, 3, 4, 5),
+        {
+          label: 'Поспать на скамейке', time: 0, sub: 'если некуда идти · энергия до 60', disabled: G.hour() < 21 && G.hour() >= 6 ? 'только ночью' : null,
+          run: async () => { await sleepUntilMorning(0.6); G.add('mood', -15); },
+        },
+      ],
+    },
+    grandmosque: {
+      name: 'Республиканская мечеть', kz: 'Бас мешіт', hours: [6, 22], tone: 'calm',
+      desc: () => 'Новая главная мечеть страны, открыта в 2022 году. Огромный голубой купол видно с Кабанбай батыра.',
+      actions: () => [
+        {
+          label: 'Посидеть в тишине', time: 30, sub: 'настроение +12 · раз в день',
+          disabled: s().daily.mosque ? gx('сегодня уже был', 'сегодня уже была') : null,
+          run: async () => { s().daily.mosque = true; await UI.fade('Тишина…', async () => G.advance(30)); G.add('mood', 12); },
+        },
+      ],
+    },
+    wheel: {
+      name: 'Ботанический сад и колесо обозрения', kz: 'Ботаникалық бақ', hours: [10, 22], tone: 'calm',
+      desc: () => G.season() === 'winter' ? 'Заснеженные аллеи, ели в инее и колесо обозрения, которое крутится даже в мороз.' : 'Аллеи, оранжереи и колесо обозрения над Есилем. С кабинки видно и старый, и новый город.',
+      npcs: () => (Romance.present('timur') ? ['timur'] : []),
+      actions: () => [
+        { label: 'Прокатиться на колесе', price: 2000, time: 30, sub: 'настроение +10', run: async () => { if (!G.pay(2000)) return; await UI.fade('Кабинка поднимается над городом…', async () => G.advance(30)); G.add('mood', 10); await say(null, 'Сверху Есиль делает плавный поворот: справа — старый город и вокзал, слева — Хан Шатыр, Байтерек и шар EXPO на горизонте.'); } },
+        { label: 'Прогулка по аллеям', time: 40, sub: 'настроение +6 · раз в день', disabled: s().daily.botsad ? gx('сегодня уже гулял', 'сегодня уже гуляла') : null, run: async () => { s().daily.botsad = true; await UI.fade('Прогулка…', async () => G.advance(40, { walking: true, outdoor: true })); G.add('mood', 6); } },
       ],
     },
     station: {
@@ -1130,10 +1179,16 @@ const Content = (() => {
     if (b.id === 'lang' && !st.met.saule) { await Talk.saule(); UI.refreshLocation(); }
   }
 
+  async function openPlace(id) {
+    if (!isOpen(id)) { const [a, c] = locHours(id); await say(null, `«${locName(id)}» сейчас закрыт. Часы работы: ${fmtClock(a * 60)}–${fmtClock((c % 24) * 60)}.`); return; }
+    Sfx.play('door');
+    await UI.openLocation(id);
+  }
+
   const WEATHER_NAMES = { clear: 'ясно', cloudy: 'облачно', rain: 'дождь', snow: 'снег', buran: 'буран' };
 
   return {
     LOCS, Talk, worldNpcs, CONTACTS, WEATHER_NAMES, FLAT_PRICE, OFFICE_TITLES,
-    faint, sleepUntilMorning, eat, enter, busTravel, taxi, taxiQuote, call, toyInvite, locName, locHours, isOpen, deliveryAt, ending,
+    faint, sleepUntilMorning, eat, enter, openPlace, busTravel, taxi, taxiQuote, call, toyInvite, locName, locHours, isOpen, deliveryAt, ending,
   };
 })();

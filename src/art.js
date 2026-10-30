@@ -851,10 +851,11 @@ const Art = (() => {
     return o;
   }
 
-  function mosque() {
+  // Мечеть; цвета куполов можно поменять (Хазрет Султан — бирюза, Бас мешіт — синий)
+  function mosque(opt = {}) {
     const o = canvases(224, 222), { g, lg, W, H } = o;
     const R = rectFn(g), L = rectFn(lg);
-    const tq = '#2fa3b5', tqL = '#8fdde8';
+    const tq = opt.dome || '#2fa3b5', tqL = opt.domeL || '#8fdde8', tqD = opt.domeD || '#1d6f80', trim = opt.trim || '#2a6f78';
     // минареты (дальние)
     const minaret = (x, top) => {
       R(x, top, 8, H - top - 4, '#f6f6f2'); R(x + 6, top, 2, H - top - 4, '#d9dcdc');
@@ -868,7 +869,7 @@ const Art = (() => {
     // основной объём
     R(26, H - 74, 172, 72, '#f7f7f4'); R(26, H - 88, 172, 14, '#e4e8ea'); R(26, H - 76, 172, 3, '#e9ecec');
     for (let x = 34; x < 190; x += 14) {
-      R(x, H - 62, 8, 30, '#2a6f78'); g.fillStyle = '#2a6f78'; g.beginPath(); g.arc(x + 4, H - 62, 4, Math.PI, 0); g.fill();
+      R(x, H - 62, 8, 30, trim); g.fillStyle = trim; g.beginPath(); g.arc(x + 4, H - 62, 4, Math.PI, 0); g.fill();
       L(x, H - 62, 8, 30, '#fff3cf');
     }
     R(100, H - 40, 24, 38, '#e6e9ea'); R(104, H - 34, 16, 32, '#2a4f58'); g.fillStyle = '#e6e9ea'; g.beginPath(); g.arc(112, H - 40, 12, Math.PI, 0); g.fill();
@@ -877,13 +878,13 @@ const Art = (() => {
     // малые купола
     const dome = (cx, cy, rx, ry) => {
       const grd = g.createLinearGradient(cx - rx, 0, cx + rx, 0);
-      grd.addColorStop(0, tqL); grd.addColorStop(0.5, tq); grd.addColorStop(1, '#1d6f80');
+      grd.addColorStop(0, tqL); grd.addColorStop(0.5, tq); grd.addColorStop(1, tqD);
       g.fillStyle = grd; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI, 0); g.fill();
       g.fillStyle = '#f2c14e'; g.fillRect(cx - 1, cy - ry - 6, 2, 6);
       lg.fillStyle = 'rgba(140,230,240,0.45)'; lg.beginPath(); lg.ellipse(cx, cy, rx, ry, 0, Math.PI, 0); lg.fill();
     };
     dome(60, H - 88, 18, 16); dome(164, H - 88, 18, 16);
-    R(76, H - 112, 72, 26, '#f7f7f4'); for (let x = 82; x < 144; x += 9) { R(x, H - 108, 4, 14, '#2a6f78'); L(x, H - 108, 4, 14, '#fff3cf'); }
+    R(76, H - 112, 72, 26, '#f7f7f4'); for (let x = 82; x < 144; x += 9) { R(x, H - 108, 4, 14, trim); L(x, H - 108, 4, 14, '#fff3cf'); }
     dome(112, H - 112, 42, 40);
     g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1;
     for (let k = 1; k <= 3; k++) { g.beginPath(); g.ellipse(112, H - 112, 42 * k / 4, 40, 0, Math.PI, 0); g.stroke(); }
@@ -993,6 +994,51 @@ const Art = (() => {
     return o;
   }
 
+
+  // Старый вокзал «Астана-1»: длинное здание с часовой башней
+  function oldStation() {
+    const o = canvases(240, 168), { g, lg, W, H } = o;
+    const R = rectFn(g), L = rectFn(lg);
+    const wall = '#efe3c4', wallD = '#d9caa4';
+    R(6, H - 74, 228, 72, wall); R(6, H - 92, 228, 18, '#b9b2a2'); R(6, H - 92, 228, 2, '#d6d0c2'); R(6, H - 76, 228, 3, wallD);
+    for (let x = 14; x < 226; x += 12) {
+      if (x > 86 && x < 150) continue;
+      R(x, H - 64, 7, 12, '#4f6a80'); g.fillStyle = '#4f6a80'; g.beginPath(); g.arc(x + 3.5, H - 64, 3.5, Math.PI, 0); g.fill();
+      R(x, H - 40, 7, 14, '#4f6a80');
+      L(x, H - 64, 7, 12, WARM[(x / 12 | 0) % 4]); L(x, H - 40, 7, 14, WARM[(x / 12 + 1 | 0) % 4]);
+    }
+    // портик и башня
+    R(88, H - 82, 64, 80, '#f6edd5'); R(88, H - 84, 64, 4, '#fffaf0');
+    for (let x = 92; x < 150; x += 9) { R(x, H - 74, 4, 60, '#fffaf0'); R(x + 4, H - 74, 1, 60, wallD); }
+    R(104, H - 30, 32, 28, '#3a4a5a'); L(104, H - 30, 32, 28, '#ffe3a3');
+    R(100, H - 136, 40, 54, '#f6edd5'); R(100, H - 136, 40, 3, '#fffaf0'); R(138, H - 136, 2, 54, wallD);
+    g.fillStyle = '#3f7a5a'; g.beginPath(); g.moveTo(96, H - 136); g.lineTo(120, H - 166); g.lineTo(144, H - 136); g.closePath(); g.fill();
+    g.fillStyle = '#2f5d45'; g.beginPath(); g.moveTo(120, H - 166); g.lineTo(144, H - 136); g.lineTo(124, H - 136); g.closePath(); g.fill();
+    g.fillStyle = '#f2c14e'; g.fillRect(119, H - 168, 2, 6);
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(120, H - 114, 10, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#2a2a2a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(120, H - 114); g.lineTo(120, H - 121); g.moveTo(120, H - 114); g.lineTo(125, H - 112); g.stroke();
+    lg.fillStyle = 'rgba(255,245,210,0.95)'; lg.beginPath(); lg.arc(120, H - 114, 11, 0, Math.PI * 2); lg.fill();
+    R(84, H - 2, 72, 2, '#cfc8b8');
+    return o;
+  }
+
+  // Монумент «Қазақ Елі»: белая стела с золотой птицей Самрук
+  function stele() {
+    if (decorCache.stele) return decorCache.stele;
+    const o = canvases(20, 120), { g, lg } = o;
+    const R = rectFn(g);
+    R(2, 108, 16, 10, '#a9a59c'); R(4, 104, 12, 4, '#c3bfb5');
+    R(7, 18, 6, 86, '#f6f6f2'); R(11, 18, 2, 86, '#d6dadd'); R(6, 100, 8, 4, '#e6e6e0');
+    R(1, 11, 18, 2, '#f2c14e'); R(3, 9, 14, 2, '#f2c14e'); R(8, 4, 4, 9, '#f2c14e'); R(9, 2, 2, 2, '#f2c14e'); R(7, 13, 6, 3, '#d9a53a');
+    outline(o.cv);
+    const halo = lg.createRadialGradient(10, 9, 1, 10, 9, 12);
+    halo.addColorStop(0, 'rgba(255,220,130,1)'); halo.addColorStop(1, 'rgba(255,200,90,0)');
+    lg.fillStyle = halo; lg.fillRect(0, 0, 20, 24);
+    lg.fillStyle = 'rgba(220,235,255,0.6)'; lg.fillRect(7, 18, 6, 86);
+    decorCache.stele = o;
+    return o;
+  }
+
   function yurt(season) {
     const key = 'yurt' + season;
     if (decorCache[key]) return decorCache[key];
@@ -1023,6 +1069,6 @@ const Art = (() => {
 
   return {
     charSheet, portrait, icon, paintGround, tree, lamp, bench, busStop, fountain, car, makeBuilding,
-    baiterek, khanShatyr, akorda, mosque, pyramid, expo, station, arena, yurt, cat, FW, FH, outline,
+    baiterek, khanShatyr, akorda, mosque, pyramid, expo, station, arena, oldStation, stele, yurt, cat, FW, FH, outline,
   };
 })();

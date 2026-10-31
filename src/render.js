@@ -69,22 +69,28 @@ const Render = (() => {
     ctx.beginPath(); ctx.ellipse(sx(wx), sy(wy), rx * S, ry * S, 0, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Персонажи нарисованы вдвое детальнее мира: один пиксель спрайта — половина пикселя мира
+  const charK = () => Math.max(1, Math.round(S * 0.5));
   function drawChar(sheet, x, y, dir, moving, anim) {
     const f = moving ? [1, 0, 2, 0][Math.floor(anim) % 4] : 0;
-    shadow(x, y - 1, 6, 2.5);
-    blitPart(sheet, f * Art.FW, dir * Art.FH, Art.FW, Art.FH, x - 8, y - 25);
+    shadow(x, y - 1, 6.5, 2.5);
+    const k = charK();
+    ctx.drawImage(sheet, f * Art.FW, dir * Art.FH, Art.FW, Art.FH, Math.round(sx(x) - 16 * k), Math.round(sy(y) - 55 * k), Art.FW * k, Art.FH * k);
   }
 
   /* ---------- кадр ---------- */
 
   let playerKey = '', playerSheet = null;
 
+  let snapNext = false;
   function frame(dt, info) {
     time += dt;
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#0d1b2a';
     ctx.fillRect(0, 0, VW, VH);
     if (!G.s) return;
+    if (snapNext) { info = { ...(info || {}), snap: true }; snapNext = false; }
+    if (Inside.active()) { frameInside(dt, info); return; }
     const p = Ents.player;
     const vw = VW / S, vh = VH / S;
     const tx = clamp(p.x - vw / 2, 0, Math.max(0, MAP_W * TILE - vw));
@@ -120,6 +126,7 @@ const Render = (() => {
     for (const ped of Ents.peds) if (ped.x > vx0 && ped.x < vx1 && ped.y > vy0 && ped.y < vy1) list.push({ y: ped.y, ped });
     for (const c of Ents.cars) if (c.x > vx0 && c.x < vx1 && c.y > vy0 && c.y < vy1) list.push({ y: c.y + 6, car: c });
     for (const n of Content.worldNpcs) if (n.visible()) list.push({ y: n.ty * TILE + 12, npc: n });
+    for (const pg of City.pigeons) if (pg.away <= 0 && pg.x > vx0 && pg.x < vx1 && pg.y > vy0 && pg.y < vy1) list.push({ y: pg.y, pig: pg });
     list.push({ y: p.y, player: true });
     list.sort((a, b) => a.y - b.y);
 
@@ -133,9 +140,10 @@ const Render = (() => {
       if (it.b) blit(it.b.sprite, it.b.sx, it.b.sy, it.b.sw, it.b.sh);
       else if (it.d) drawDecor(it.d, season);
       else if (it.ped) {
-        if (!it.ped.sheet || it.ped.season !== season) { it.ped.season = season; if (season === 'winter' && !it.ped.look.outer && chance(0.85)) { it.ped.look = Ents.randomLook(true); } it.ped.sheet = Art.charSheet(it.ped.look); }
+        if (!it.ped.sheet || it.ped.season !== season) { it.ped.season = season; if (season === 'winter' && !it.ped.look.outer && chance(0.85)) { if (it.ped.police) { it.ped.look.outer = 'puffer'; it.ped.look.outerColor = '#1f2a44'; } else it.ped.look = Ents.randomLook(true); } it.ped.sheet = Art.charSheet(it.ped.look); }
         drawChar(it.ped.sheet, it.ped.x, it.ped.y, it.ped.dir, !!it.ped.tgt && it.ped.pause <= 0, it.ped.anim);
       } else if (it.car) drawCar(it.car);
+      else if (it.pig) drawPigeon(it.pig);
       else if (it.npc) {
         const n = it.npc;
         const sheet = n.sheet || (n.sheet = Art.charSheet(NPCS[n.id].look));
@@ -152,7 +160,8 @@ const Render = (() => {
       if (!b) continue;
       if (p.x > b.sx && p.x < b.sx + b.sw && p.y - 20 > b.sy && p.y < b.base) {
         ctx.globalAlpha = 0.45;
-        blitPart(playerSheet, 0, p.dir * Art.FH, Art.FW, Art.FH, p.x - 8, p.y - 25);
+        const k = charK();
+        ctx.drawImage(playerSheet, 0, p.dir * Art.FH, Art.FW, Art.FH, Math.round(sx(p.x) - 16 * k), Math.round(sy(p.y) - 55 * k), Art.FW * k, Art.FH * k);
         ctx.globalAlpha = 1;
         break;
       }
@@ -165,6 +174,90 @@ const Render = (() => {
     drawLabels(info);
     drawMarkers(info);
     drawCold();
+  }
+
+  // Голубь в масштабе персонажей: клюёт, вертит головой, вспархивает
+  function drawPigeon(g) {
+    const u = charK();
+    const X = sx(g.x), Y = sy(g.y);
+    const flip = g.dir < 0;
+    const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(X + (flip ? -x - w : x) * u), Math.round(Y + y * u), w * u, h * u); };
+    const body = g.white ? '#e8edf0' : '#8a95a0', wing = g.white ? '#c5ced4' : '#6d7780', head = g.white ? '#f4f7f8' : '#5d6670';
+    if (g.z < 2) { ctx.fillStyle = 'rgba(10,15,30,0.22)'; ctx.fillRect(X - 3 * u, Y - u, 7 * u, u); }
+    const lift = -Math.round(g.z / (u / S));
+    if (g.fly > 0) {
+      const up = Math.floor(time * 14 + g.hx) % 2 === 0;
+      R(-4, -6 + lift, 8, 3, body); R(-6, -6 + lift, 2, 1, wing); R(3, -8 + lift, 3, 3, head); R(6, -7 + lift, 1, 1, '#c9a27a');
+      if (up) { R(-3, -11 + lift, 2, 5, wing); R(0, -10 + lift, 2, 4, wing); } else { R(-5, -4 + lift, 9, 2, wing); }
+      return;
+    }
+    R(-4, -5, 7, 3, body); R(-3, -6, 5, 1, body); R(-3, -5, 5, 2, wing); R(-6, -5, 2, 1, wing); R(-5, -4, 1, 1, wing);
+    R(-1, -2, 1, 2, '#e5533d'); R(1, -2, 1, 2, '#e5533d');
+    if (g.peck < 0) { R(3, -4, 3, 2, head); R(6, -3, 1, 1, '#c9a27a'); }
+    else { R(2, -5, 2, 1, g.white ? '#dfe7ea' : '#4f9a86'); R(2, -8, 3, 3, head); R(4, -7, 1, 1, '#1b1d22'); R(5, -7, 1, 1, '#c9a27a'); }
+  }
+
+  /* ---------- интерьер ---------- */
+
+  function frameInside(dt, info) {
+    const R = Inside.room();
+    const p = Ents.player;
+    const vw = VW / S, vh = VH / S;
+    const rw = R.def.W * TILE, rh = R.def.H * TILE;
+    const topM = 150 * dpr / S; // под HUD
+    const tx = rw <= vw ? -(vw - rw) / 2 : clamp(p.x - vw / 2, -8, rw - vw + 8);
+    const ty = rh <= vh - topM ? -topM - (vh - topM - rh) / 2 : clamp(p.y - 12 - (vh + topM) / 2, -topM, rh - vh + 24);
+    if (info && info.snap) { camX = tx; camY = ty; }
+    const k = 1 - Math.exp(-dt * 8);
+    camX += (tx - camX) * k; camY += (ty - camY) * k;
+    lastCamX = camX; lastCamY = camY;
+
+    ctx.fillStyle = '#0a1320'; ctx.fillRect(0, 0, VW, VH);
+    const bg = Inside.background();
+    ctx.drawImage(bg, sx(0), sy(0), bg.width * S, bg.height * S);
+
+    const list = Inside.drawables();
+    list.push({ y: p.y, player: true });
+    list.sort((a, b) => a.y - b.y);
+    const look = G.look();
+    const key = JSON.stringify(look);
+    if (key !== playerKey) { playerKey = key; playerSheet = Art.charSheet(look); }
+    for (const it of list) {
+      if (it.img) blit(it.img, it.x, it.top, it.img.width, it.img.height);
+      else if (it.npc) {
+        const n = it.npc;
+        const sheet = n.sheet || (n.sheet = Art.charSheet(NPCS[n.id].look));
+        drawChar(sheet, n.x * TILE, n.y * TILE, n.dir || 0, false, 0);
+      } else if (it.guest) {
+        // гость сидит за столиком: рисуем только верх, ноги скрыты столом
+        const gs = it.guest;
+        if (!gs.sheet) gs.sheet = Art.charSheet(gs.look);
+        const kk = charK();
+        const rows = 34;
+        ctx.drawImage(gs.sheet, 0, 0, Art.FW, rows, Math.round(sx(gs.x * TILE) - 16 * kk), Math.round(sy(gs.y * TILE) - 46 * kk), Art.FW * kk, rows * kk);
+      } else if (it.player) drawChar(playerSheet, p.x, p.y, p.dir, p.moving, p.anim);
+    }
+
+    // свет: вечером в комнате горят лампы, тёплый оттенок
+    const d = darkness();
+    if (d > 0.01) {
+      ctx.fillStyle = `rgba(40,24,10,${d * 0.35})`; ctx.fillRect(0, 0, VW, VH);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = d * 0.5;
+      for (const it of list) if (it.lamp) ctx.drawImage(lampGlow, sx(it.x - 24), sy(it.top - 20), 60 * S, 60 * S);
+      ctx.drawImage(lampGlow, sx(rw / 2 - 70), sy(rh / 2 - 70), 140 * S, 140 * S);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    }
+    drawGrade();
+    for (const it of list) if (it.npc) {
+      const n = it.npc;
+      plate(NPCS[n.id].name, n.x * TILE, n.y * TILE - 38, { size: 3.4, bg: 'rgba(19,40,58,0.85)', color: '#eef6fa', border: false });
+    }
+    plate(Content.locName(R.locId), rw / 2, -6, { size: 4, bg: 'rgba(19,40,58,0.92)' });
+    if (info && info.near && info.near.label) {
+      const n = info.near;
+      plate('E', n.x, n.y + Math.sin(time * 5) * 1.2, { size: 4, bg: '#2ec4e6', color: '#0d1b2a', border: false, weight: 800 });
+    }
   }
 
   /* ---------- тени, облака, следы, цветокоррекция ---------- */
@@ -615,5 +708,5 @@ const Render = (() => {
     return cv;
   }
 
-  return { init, frame, ground, postcard, resize, now: () => time };
+  return { init, frame, ground, postcard, resize, now: () => time, snap: () => { snapNext = true; } };
 })();

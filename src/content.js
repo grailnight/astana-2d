@@ -42,19 +42,19 @@ const NPCS = {
   mama: { name: 'Мама', look: { female: true, skin: '#d9a982', hair: '#5a3d28', hairStyle: 'bun', outfit: 'casual', top: '#3f6f8f', bottom: '#3b3b3b', hat: 'kerchief', hatColor: '#c0392b' } },
   gulnar: { name: 'Гульнар-апай', look: { female: true, skin: '#d9a982', hair: '#9a9a9a', hairStyle: 'bun', outfit: 'casual', top: '#7b2d4a', bottom: '#2b2b2b', hat: 'kerchief', hatColor: '#2a6f97' } },
   dauren: { name: 'Даурен', look: { female: false, skin: '#d4a07a', hair: '#1d1612', hairStyle: 'short', outfit: 'courier', top: '#f0b429', bottom: '#2a3550', hat: 'cap', hatColor: '#1d3a4a' } },
-  aigerim: { name: 'Айгерим', look: { female: true, skin: '#e8bf98', hair: '#3b2a20', hairStyle: 'pony', outfit: 'apron', top: '#f2efe8', bottom: '#2b2b2b', apron: '#6b4a32' } },
+  aigerim: { name: 'Айгерим', look: { female: true, skin: '#e8bf98', hair: '#3b2a20', hairStyle: 'pony', outfit: 'apron', top: '#f2efe8', bottom: '#2b2b2b', apron: '#6b4a32', earrings: true } },
   arman: { name: 'Арман', look: { female: false, skin: '#e0b38c', hair: '#1d1612', hairStyle: 'short', outfit: 'hoodie', top: '#3a3f4a', bottom: '#2a3550', glasses: true } },
-  saule: { name: 'Сауле-апай', look: { female: true, skin: '#e0b38c', hair: '#2b1d16', hairStyle: 'bob', outfit: 'suit', top: '#3b5998', bottom: '#2b2b2b', tie: '#f2c14e', glasses: true } },
-  erzhan: { name: 'Ержан-ага', look: { female: false, skin: '#c68c63', hair: '#3b3b3b', hairStyle: 'buzz', outfit: 'casual', top: '#4a7a3a', bottom: '#3b3b3b', hat: 'kalpak' } },
-  madina: { name: 'Мадина', look: { female: true, skin: '#ecc6a2', hair: '#1d1612', hairStyle: 'long', outfit: 'gala', top: '#f4f0f0', bottom: '#f4f0f0', hat: 'saukele' } },
-  tamada: { name: 'Тамада Болат', look: { female: false, skin: '#d4a07a', hair: '#2b1d16', hairStyle: 'short', outfit: 'gala', top: '#5a1f3d', bottom: '#1b1b1b' } },
+  saule: { name: 'Сауле-апай', look: { female: true, skin: '#e0b38c', hair: '#2b1d16', hairStyle: 'bob', outfit: 'suit', top: '#3b5998', bottom: '#2b2b2b', tie: '#f2c14e', glasses: true, earrings: true } },
+  erzhan: { name: 'Ержан-ага', look: { female: false, skin: '#c68c63', hair: '#3b3b3b', hairStyle: 'buzz', outfit: 'casual', top: '#4a7a3a', bottom: '#3b3b3b', hat: 'kalpak', mustache: true } },
+  madina: { name: 'Мадина', look: { female: true, skin: '#ecc6a2', hair: '#1d1612', hairStyle: 'long', outfit: 'gala', top: '#f4f0f0', bottom: '#f4f0f0', hat: 'saukele', earrings: true } },
+  tamada: { name: 'Тамада Болат', look: { female: false, skin: '#d4a07a', hair: '#2b1d16', hairStyle: 'short', outfit: 'gala', top: '#5a1f3d', bottom: '#1b1b1b', mustache: true } },
   kid: { name: 'Аружан', look: { female: true, skin: '#f1c9a5', hair: '#2b1d16', hairStyle: 'pony', outfit: 'hoodie', top: '#e84393', bottom: '#3b3b3b' } },
   tourist: { name: 'Марат из Алматы', look: { female: false, skin: '#e0b38c', hair: '#3b2a20', hairStyle: 'short', outfit: 'casual', top: '#e67e22', bottom: '#2a3550', hat: 'cap', hatColor: '#16a085', glasses: true } },
   granny: { name: 'Әже Бибігүл', look: { female: true, skin: '#c68c63', hair: '#cfcfcf', hairStyle: 'bun', outfit: 'chapan', top: '#5b3a6e', bottom: '#2b2b2b', hat: 'kerchief', hatColor: '#f4f0f0' } },
   timur: { name: 'Тимур', look: { female: false, skin: '#e0b38c', hair: '#2b1d16', hairStyle: 'short', outfit: 'hoodie', top: '#3f6f5a', bottom: '#2a3550', hat: 'beanie', hatColor: '#c0392b' } },
-  zhanel: { name: 'Жанель', look: { female: true, skin: '#e8bf98', hair: '#1d1612', hairStyle: 'bun', outfit: 'suit', top: '#f4f7f8', bottom: '#5b7fa6', tie: '#2ec4e6' } },
+  zhanel: { name: 'Жанель', look: { female: true, skin: '#e8bf98', hair: '#1d1612', hairStyle: 'bun', outfit: 'suit', top: '#f4f7f8', bottom: '#5b7fa6', tie: '#2ec4e6', earrings: true, lips: '#b03a48' } },
   alikhan: { name: 'Алихан', look: { female: false, skin: '#d4a07a', hair: '#1d1612', hairStyle: 'short', outfit: 'suit', top: '#3b4a5a', bottom: '#2b2f3a', tie: '#f2c14e', glasses: true } },
-  dombra: { name: 'Домбрист Ерлан', look: { female: false, skin: '#d4a07a', hair: '#1d1612', hairStyle: 'short', outfit: 'chapan', top: '#7a1f1f', bottom: '#1b1b1b', hat: 'kalpak' } },
+  dombra: { name: 'Домбрист Ерлан', look: { female: false, skin: '#d4a07a', hair: '#1d1612', hairStyle: 'short', outfit: 'chapan', top: '#7a1f1f', bottom: '#1b1b1b', hat: 'kalpak', beard: true } },
 };
 
 const PED_LINES = [
@@ -487,7 +487,7 @@ const Content = (() => {
     const c = await ask(null, `Аялдама «${stop.name}». Проезд — ${fmtMoney(BUS_FARE)}. Куда едем?`, items);
     if (c >= opts.length) return;
     const to = opts[c];
-    if (!G.pay(BUS_FARE)) return;
+    if (!G.canPay(BUS_FARE)) { if (!await City.dodgeFare()) return; } else G.pay(BUS_FARE);
     const mins = Math.round(10 + (Math.abs(to.tx - stop.tx) + Math.abs(to.ty - stop.ty)) * 0.35);
     await UI.fade(`Автобус едет до «${to.name}»…`, async () => {
       G.advance(mins);
@@ -789,6 +789,7 @@ const Content = (() => {
         buyFood('Кофе 3-в-1', 300, 0, 1, 8, 5),
         buyItem('chocolate', 450),
         buyItem('baursak', 1200),
+        City.buyPaper(),
       ],
     },
     market: {
@@ -798,6 +799,7 @@ const Content = (() => {
       actions: () => [
         buyCloth('puffer', 28000), buyCloth('ushanka', 6000), buyCloth('chapan', 35000), buyCloth('kalpak', 9000), buyCloth('hoodie', 12000),
         buyItem('kazy', 4000), buyItem('kurt', 800), buyItem('kumys', 1200),
+        City.buyPaper(), City.stealAction(),
       ],
     },
     shawarma: {
@@ -916,7 +918,7 @@ const Content = (() => {
           G.add('mood', Math.round(8 + acc * 18));
           await say(null, acc > 0.7 ? 'Зал аплодирует стоя! Кто-то снимает тебя на телефон.' : acc > 0.4 ? 'Неплохо! Друзья за соседним столиком подпевали.' : `Ну… ты хотя бы не ${gx('держал', 'держала')} микрофон вверх ногами.`);
         },
-      }],
+      }, ...City.jobActions('karaoke')],
     },
     toyhana: {
       name: 'Той-хана «Алтын Сарай»', kz: 'Алтын Сарай', hours: [10, 24], tone: 'gold',
@@ -926,7 +928,7 @@ const Content = (() => {
         const today = Quests.status('toy') === 'active' && st.day === st.flags.toyDay && G.hour() >= 17.5;
         if (today && !st.flags.toyDone) return [{ label: 'Войти на той Даурена и Мадины', sub: 'нужна нарядная одежда', run: wedding }];
         if (Romance.weddingToday()) return [{ label: `Ваш той: ты и ${NPCS[Romance.love().partner].name}`, sub: 'нужна нарядная одежда', run: Romance.ownWedding }];
-        return [{ label: 'Заглянуть в зал', time: 10, sub: 'сегодня закрытое мероприятие', run: async () => { G.advance(10); await say(null, 'Официант вежливо улыбается: «Сегодня у нас закрытый той. Кто-то из Шымкента женится — гостей восемьсот человек!»'); } }];
+        return [{ label: 'Заглянуть в зал', time: 10, sub: 'сегодня закрытое мероприятие', run: async () => { G.advance(10); await say(null, 'Официант вежливо улыбается: «Сегодня у нас закрытый той. Кто-то из Шымкента женится — гостей восемьсот человек!»'); } }, ...City.jobActions('toyhana')];
       },
     },
     pyramid: {
@@ -975,7 +977,7 @@ const Content = (() => {
             await say(null, pick(['Закат окрашивает город в золото.', 'Снизу Акорда кажется игрушечной.', 'Ты находишь взглядом свой дом на правом берегу.']));
           } else await say(null, 'Вид всё такой же прекрасный.');
         },
-      }],
+      }, ...City.jobActions('baiterek')],
     },
     akorda: {
       name: 'Акорда', kz: 'Ақорда', hours: [0, 24], tone: 'calm',
@@ -1056,6 +1058,7 @@ const Content = (() => {
       actions: () => [
         buyFood('Беляш', 400, 15, 1, 0, 10),
         buyFood('Чай из термоса у бабушки', 200, 4, 3, 4, 5),
+        City.buyPaper(),
         { label: 'Умыться в туалете вокзала', price: 100, time: 10, icon: 'drop', sub: 'гигиена +25', run: async () => { if (!G.pay(100)) return; G.advance(10); G.add('hyg', 25); } },
         {
           label: 'Поспать на скамейке', time: 0, sub: 'если некуда идти · энергия до 60', disabled: G.hour() < 21 && G.hour() >= 6 ? 'только ночью' : null,
@@ -1092,6 +1095,7 @@ const Content = (() => {
           label: 'Поспать на скамейке', time: 0, sub: 'если некуда идти · энергия до 60', disabled: G.hour() < 21 && G.hour() >= 6 ? 'только ночью' : null,
           run: async () => { await sleepUntilMorning(0.6); G.add('mood', -15); },
         },
+        City.buyPaper(),
         { label: 'Посмотреть на табло', time: 5, sub: 'просто вспомнить, откуда ' + gx('приехал', 'приехала'), run: async () => { G.advance(5); await say(null, `Поезд в ${s().base.from === 'аул под Туркестаном' ? 'Туркестан' : s().base.from} уходит каждый вечер. Где-то там мама сейчас пьёт чай и смотрит новости про погоду в Астане.`); } },
       ],
     },
@@ -1133,6 +1137,7 @@ const Content = (() => {
 
   async function enter(b) {
     const st = s();
+    if (st.jobTrack === b.id) st.jobTrack = null;
     if (st.delivery && await deliveryAt(b.id)) {
       if (b.res || !LOCS[b.id]) return;
     }
@@ -1154,12 +1159,17 @@ const Content = (() => {
       return;
     }
     if (b.id === 'home' && !st.flags.metGulnar) {
-      await UI.openLocation('home');
+      Sfx.play('door');
+      await Inside.enter(b);
       await Talk.gulnar();
-      UI.refreshLocation();
       return;
     }
     Sfx.play('door');
+    // дом, своя квартира и кофейня — комнаты, по которым можно ходить
+    if (!(b.id === 'home' && st.rent.locked) && await Inside.enter(b)) {
+      if (b.id === 'coffee' && !st.flags.metAigerim) await Talk.aigerim();
+      return;
+    }
     await UI.openLocation(b.id);
     if (b.id === 'courier' && !st.flags.joinedCourier) { await Talk.dauren(); UI.refreshLocation(); }
     if (b.id === 'coffee' && !st.flags.metAigerim) { await Talk.aigerim(); UI.refreshLocation(); }

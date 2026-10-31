@@ -50,14 +50,7 @@ const UI = (() => {
     const src = portraitSrc(who);
     return src ? `<img class="portrait" width="${size}" height="${size}" alt="" src="${src}">` : '';
   }
-  function spriteSrc(L, dir = 0, scale = 4) {
-    const sheet = Art.charSheet(L);
-    const cv = makeCanvas(16 * scale, Art.FH * scale);
-    const g = cv.getContext('2d');
-    g.imageSmoothingEnabled = false;
-    g.drawImage(sheet, 0, dir * Art.FH, 16, Art.FH, 0, 0, 16 * scale, Art.FH * scale);
-    return cv.toDataURL();
-  }
+  const spriteSrc = (L, dir = 0, scale = 2) => Art.sprite(L, dir, scale).toDataURL();
 
   /* ---------- диалоги ---------- */
 
@@ -209,14 +202,14 @@ const UI = (() => {
   const ACTS = [['Войти', 'ВОЙТИ', 'door'], ['Говорить', 'ГОВОРИТЬ', 'talk'], ['Заговорить', 'ПРИВЕТ', 'talk'], ['Забрать', 'ВЗЯТЬ', 'bag'], ['Доставить', 'ОТДАТЬ', 'gift'],
     ['Подъезд', 'ДВЕРЬ', 'door'], ['Смотреть', 'СМОТРЕТЬ', 'camera'], ['Автобус', 'АВТОБУС', 'bus'], ['Погладить', 'ГЛАДИТЬ', 'heart'], ['Посидеть', 'СЕСТЬ', 'clock'],
     ['Бросить', 'МОНЕТКА', 'coin'], ['Юрта', 'ЮРТА', 'cup'], ['Поднять', 'ВЗЯТЬ', 'mail']];
-  function hint(text) {
+  function hint(text, word) {
     const el = $('#hint');
     const btn = $('#btn-act');
     if (!text) { el.hidden = true; btn.classList.remove('live'); hudCache.hint = null; return; }
     if (hudCache.hint !== text) {
       hudCache.hint = text;
       el.innerHTML = `<span class="kbd">E</span>${escapeHtml(text)}`;
-      const a = ACTS.find(([k]) => text.startsWith(k)) || ['', 'ДЕЙСТВИЕ', 'star'];
+      const a = word ? ['', word[0], word[1]] : ACTS.find(([k]) => text.startsWith(k)) || ['', 'ДЕЙСТВИЕ', 'star'];
       btn.innerHTML = `${UIKit.img(a[2])}<span>${a[1]}</span>`;
     }
     el.hidden = false;
@@ -286,10 +279,13 @@ const UI = (() => {
     return m ? m[1] : 'star';
   }
 
-  function openLocation(id) {
+  // opts: { only: RegExp — оставить действия по названию, title, compact — без сцены (мебель в интерьере), extra: () => [] }
+  let locOpts = {};
+  function openLocation(id, opts = {}) {
     closeLocation();
     locId = id;
-    locEl = h(`<div class="loc" role="dialog" aria-label="${escapeHtml(Content.locName(id))}"></div>`);
+    locOpts = opts;
+    locEl = h(`<div class="loc ${opts.compact ? 'compact' : ''}" role="dialog" aria-label="${escapeHtml(opts.title || Content.locName(id))}"></div>`);
     pushModal(locEl);
     locEl.addEventListener('click', onLocClick);
     renderLocation();
@@ -302,21 +298,24 @@ const UI = (() => {
     const s = G.s;
     const [a, b] = Content.locHours(locId);
     const hours = a === 0 && b === 24 ? 'круглосуточно' : `${fmtClock(a * 60)}–${fmtClock((b % 24) * 60)}`;
-    const npcs = (L.npcs ? L.npcs() : []).filter((n) => !(n === 'gulnar' && s.homeId !== 'home'));
-    const acts = L.actions().filter(Boolean);
+    const o = locOpts;
+    const npcs = o.compact ? [] : (L.npcs ? L.npcs() : []).filter((n) => !(n === 'gulnar' && s.homeId !== 'home'));
+    let acts = L.actions().filter(Boolean);
+    if (o.only) acts = acts.filter((x) => o.only.test(x.label));
+    if (o.extra) acts = acts.concat(o.extra());
     locEl.style.setProperty('--tone', TONES[L.tone] || '#2ec4e6');
     locEl.innerHTML = `
       <div class="loc-card fx-panel">
         <div class="loc-scene">
-          <div class="loc-title"><span class="fx-gold">${escapeHtml(Content.locName(locId))}</span><small>${escapeHtml(L.kz || '')}</small></div>
+          <div class="loc-title"><span class="fx-gold">${o.icon ? UIKit.img(o.icon) : ''}${escapeHtml(o.title || Content.locName(locId))}</span><small>${escapeHtml(o.compact ? Content.locName(locId) : L.kz || '')}</small></div>
           <div class="loc-chips"><span>${UIKit.img('clock')}${fmtClock(s.min)}</span><span>${UIKit.img('coin')}${fmtMoney(s.money)}</span></div>
-          <div class="loc-people">${npcs.map((n) => `<button class="person" data-npc="${n}" aria-label="Поговорить: ${escapeHtml(NPCS[n].name)}"><img alt="" src="${spriteSrc(NPCS[n].look, 0, 3)}"><span class="fx-paper">${escapeHtml(NPCS[n].name)}</span></button>`).join('')}</div>
+          <div class="loc-people">${npcs.map((n) => `<button class="person" data-npc="${n}" aria-label="Поговорить: ${escapeHtml(NPCS[n].name)}"><img alt="" src="${spriteSrc(NPCS[n].look, 0, 2)}"><span class="fx-paper">${escapeHtml(NPCS[n].name)}</span></button>`).join('')}</div>
         </div>
-        <p class="loc-desc">${escapeHtml(L.desc())} <em>${hours}</em></p>
+        ${o.compact ? '' : `<p class="loc-desc">${escapeHtml(L.desc())} <em>${hours}</em></p>`}
         <div class="tiles">${acts.map((x, i) => actTile(x, i)).join('') || '<p class="empty">Здесь пока нечего делать.</p>'}</div>
-        <footer class="loc-foot"><button class="btn fx-red" data-close>${UIKit.img('door')}Выйти</button></footer>
+        <footer class="loc-foot"><button class="btn fx-red" data-close>${UIKit.img(o.compact ? 'back' : 'door')}${o.compact ? 'Отойти' : 'Выйти'}</button></footer>
       </div>`;
-    $('.loc-scene', locEl).prepend(sceneCanvas(locId));
+    if (!o.compact) $('.loc-scene', locEl).prepend(sceneCanvas(locId));
     locEl._acts = acts;
   }
 
@@ -340,7 +339,7 @@ const UI = (() => {
   let actBusy = false;
   async function onLocClick(e) {
     if (actBusy || topModal() !== locEl) return;
-    if (e.target.closest('[data-close]')) { Sfx.play('door'); closeLocation(); return; }
+    if (e.target.closest('[data-close]')) { Sfx.play(locOpts.compact ? 'click' : 'door'); closeLocation(); return; }
     const npc = e.target.closest('[data-npc]');
     if (npc) {
       actBusy = true;
@@ -368,10 +367,10 @@ const UI = (() => {
   }
 
   function closeLocation() {
-    if (locEl) { popModal(locEl); locEl = null; locId = null; }
+    if (locEl) { popModal(locEl); locEl = null; locId = null; locOpts = {}; }
   }
   const refreshLocation = () => renderLocation();
-  const currentLoc = () => locId;
+  const currentLoc = () => locId || (typeof Inside !== 'undefined' ? Inside.locId() : null);
 
   // Esc закрывает верхнее окно, если это локация, телефон или гардероб
   function escape() {
@@ -409,7 +408,7 @@ const UI = (() => {
           return `<section><h3>${title}</h3><div class="chips">${items.map((id) => `<button class="chip-btn ${c[key] === id ? 'fx-btn on' : 'fx-tile'}" data-slot="${key}" data-id="${id || ''}">${id ? escapeHtml(CLOTHES[id].name) : 'Без'}${id && CLOTHES[id].warm ? ` <small>+${CLOTHES[id].warm}°</small>` : ''}</button>`).join('')}</div></section>`;
         };
         el.innerHTML = `<header class="sheet-head"><span class="fx-gold">Гардероб</span><small>Тепло: ${G.warmth()} · нужно сейчас: ${G.needWarmth()}</small></header>
-          <div class="wr-body"><img class="wr-prev" alt="" src="${spriteSrc(G.look(), 0, 6)}"><div class="wr-slots">
+          <div class="wr-body"><img class="wr-prev" alt="" src="${spriteSrc(G.look(), 0, 3)}"><div class="wr-slots">
           ${slot('Одежда', 'outfit', false)}${slot('Верхняя одежда', 'outer', true)}${slot('Головной убор', 'hat', true)}</div></div>
           <footer class="loc-foot"><button class="btn fx-btn" data-close>${UIKit.img('shirt')}Готово</button></footer>`;
       };
@@ -508,12 +507,13 @@ const UI = (() => {
       const items = Object.entries(s.inv).filter(([, n]) => n > 0);
       const c = s.clothes;
       const worn = [c.outfit, c.outer, c.hat].filter(Boolean).map((id) => CLOTHES[id].name).join(', ');
-      return `${items.map(([id, n]) => `<div class="item"><span><b>${escapeHtml(ITEMS[id].name)}${n > 1 ? ` ×${n}` : ''}</b><small>${escapeHtml(ITEMS[id].desc)}</small></span>${ITEMS[id].food ? `<button class="btn small fx-btn" data-eat="${id}">Съесть</button>` : ''}</div>`).join('') || '<p class="empty">Сумка пуста.</p>'}
+      const paper = s.paperDay === s.day ? `<div class="item"><span><b>Газета «${City.PAPER}»</b><small>Сегодняшний номер: новости и вакансии</small></span><button class="btn small fx-btn" data-paper>Читать</button></div>` : '';
+      return `${paper}${items.map(([id, n]) => `<div class="item"><span><b>${escapeHtml(ITEMS[id].name)}${n > 1 ? ` ×${n}` : ''}</b><small>${escapeHtml(ITEMS[id].desc)}</small></span>${ITEMS[id].food ? `<button class="btn small fx-btn" data-eat="${id}">Съесть</button>` : ''}</div>`).join('') || (paper ? '' : '<p class="empty">Сумка пуста.</p>')}
         <h3>Одежда</h3><p class="note">Надето: ${escapeHtml(worn)}. Тепло: ${G.warmth()} (сейчас нужно ${G.needWarmth()}). Переодеться можно дома в гардеробе.</p>`;
     }
     if (tab === 'me') {
       const sk = Object.entries(SKILLS).map(([k, v]) => `<div class="skill"><img alt="" src="${Art.icon(v.icon, 2)}"><b>${v.name}</b><span>ур. ${G.lv(k)}</span>${bar(s.xp[k] - G.lv(k), 1)}</div>`).join('');
-      const job = s.job.hired ? Content.OFFICE_TITLES[s.job.level] + ' в Steppe Digital' : s.flags.joinedCourier ? 'Курьер «Жылдам»' : 'Ищу работу';
+      const job = s.job.hired ? Content.OFFICE_TITLES[s.job.level] + ' в Steppe Digital' : s.flags.joinedCourier ? 'Курьер «Жылдам»' : s.stats.gigs ? 'Подработки' : 'Ищу работу';
       const friends = Object.entries(s.rel).filter(([k, v]) => k !== 'mama' && v >= 50).length;
       const partner = s.love.partner ? NPCS[s.love.partner].name : '—';
       return `<div class="me-head">${portraitEl('me', 56)}<span><b>${escapeHtml(s.name)}</b><small>${escapeHtml(job)}</small><small>Из: ${escapeHtml(s.base.from || 'родного посёлка')} · день ${s.day} в Астане</small></span></div>
@@ -525,6 +525,7 @@ const UI = (() => {
         </div>
         <h3>Навыки</h3>${sk}
         <h3>Люди</h3><div class="counters"><div><b>${friends}</b><span>друзей</span></div><div><b>${escapeHtml(partner)}</b><span>любовь</span></div><div><b>${s.love.broken || 0}</b><span>разбитых сердец</span></div></div>
+        <h3>Закон</h3><div class="stats"><div><span>Нарушения</span>${bar(s.crime || 0, 100)}<em>${escapeHtml(City.crimeLabel())}</em></div></div>
         <h3>Жильё</h3><p class="note">${s.flags.ownFlat ? 'Своя квартира на левом берегу.' : `Комната у Гульнар-апай. Аренда ${fmtMoney(s.rent.amount)} — оплачено до конца дня ${s.rent.due}.${s.rent.locked ? ' Комната закрыта за долг!' : ''}`}</p>`;
     }
     if (tab === 'medals') {
@@ -559,6 +560,7 @@ const UI = (() => {
     if (app) { Sfx.play('click'); phoneApp = app.dataset.app; renderPhone(); return; }
     const tr = t.closest('[data-track]');
     if (tr) { G.s.track = tr.dataset.track; Sfx.play('click'); renderPhone(); return; }
+    if (t.closest('[data-paper]')) { Sfx.play('click'); closePhone(); City.openPaper(); return; }
     const call = t.closest('[data-call]');
     if (call) { await Content.call(call.dataset.call); Quests.tick(); renderPhone(); return; }
     const eat = t.closest('[data-eat]');
@@ -705,24 +707,26 @@ const UI = (() => {
   const SKINS = ['#f1c9a5', '#e0b38c', '#d4a07a', '#c68c63', '#a8714f'];
   const HAIRS = ['#1d1612', '#3b2a20', '#5a3d28', '#8a5a2b', '#b08a5a', '#7a1f1f'];
   const SPORT = ['#2f6fd1', '#c0392b', '#27ae60', '#8e44ad', '#16a085', '#2b2b2b', '#e67e22'];
-  const STYLES_M = [['short', 'Короткая'], ['buzz', 'Ёжик'], ['bob', 'Каре'], ['long', 'Длинные']];
+  const STYLES_M = [['short', 'Короткая'], ['side', 'Набок'], ['buzz', 'Ёжик'], ['long', 'Длинные']];
+  const FACE_M = [['', 'Без'], ['mustache', 'Усы'], ['beard', 'Борода']];
   const STYLES_F = [['long', 'Длинные'], ['pony', 'Хвост'], ['bun', 'Пучок'], ['bob', 'Каре'], ['short', 'Короткая']];
   const TOWNS = ['Шымкент', 'Караганда', 'Актобе', 'Павлодар', 'Кызылорда', 'Уральск', 'Семей', 'аул под Туркестаном'];
 
   function creator() {
     return new Promise((resolve) => {
-      const st = { name: '', female: false, skin: SKINS[1], hair: HAIRS[0], hairStyle: 'short', sport: SPORT[0], from: TOWNS[0], glasses: false };
+      const st = { name: '', female: false, skin: SKINS[1], hair: HAIRS[0], hairStyle: 'short', sport: SPORT[0], from: TOWNS[0], glasses: false, face: '', earrings: true };
       const el = h('<div class="sheet creator fx-panel" role="dialog" aria-label="Создание персонажа"></div>');
       pushModal(el);
       let spin = 0, raf = 0;
-      const look = () => ({ female: st.female, skin: st.skin, hair: st.hair, hairStyle: st.hairStyle, outfit: 'sport', top: st.sport, bottom: shade(st.sport, -0.3), shoes: '#2a2420', glasses: st.glasses });
+      const look = () => ({ female: st.female, skin: st.skin, hair: st.hair, hairStyle: st.hairStyle, outfit: 'sport', top: st.sport, bottom: shade(st.sport, -0.3), shoes: '#2a2420', glasses: st.glasses, ...feat() });
+      const feat = () => st.female ? { earrings: st.earrings } : { beard: st.face === 'beard', mustache: st.face === 'mustache' };
       const sw = (key, list) => `<div class="swatches">${list.map((c) => `<button class="sw ${st[key] === c ? 'on' : ''}" data-k="${key}" data-v="${c}" style="--c:${c}" aria-label="${c}"></button>`).join('')}</div>`;
       const chip = (on, attr, text) => `<button class="chip-btn ${on ? 'fx-btn on' : 'fx-tile'}" ${attr}>${text}</button>`;
       const render = () => {
         const styles = st.female ? STYLES_F : STYLES_M;
         el.innerHTML = `<header class="sheet-head"><span class="fx-gold">Кто ты?</span><small>Новый житель столицы</small></header>
           <div class="cr-body">
-            <div class="cr-prev fx-plain"><canvas width="96" height="162"></canvas></div>
+            <div class="cr-prev fx-plain"><canvas width="96" height="171"></canvas></div>
             <div class="cr-form">
               <label class="fld"><span>Имя</span><input id="cr-name" class="fx-paper" maxlength="16" placeholder="${st.female ? 'Например, Дана' : 'Например, Нурлан'}" value="${escapeHtml(st.name)}" autocomplete="off"></label>
               <div class="fld"><span>Пол</span><div class="chips">${chip(!st.female, 'data-sex="m"', 'Парень')}${chip(st.female, 'data-sex="f"', 'Девушка')}</div></div>
@@ -730,6 +734,7 @@ const UI = (() => {
               <div class="fld"><span>Кожа</span>${sw('skin', SKINS)}</div>
               <div class="fld"><span>Волосы</span>${sw('hair', HAIRS)}</div>
               <div class="fld"><span>Причёска</span><div class="chips">${styles.map(([k, n]) => chip(st.hairStyle === k, `data-hs="${k}"`, n)).join('')}${chip(st.glasses, 'data-gl', 'Очки')}</div></div>
+              <div class="fld"><span>${st.female ? 'Украшения' : 'Лицо'}</span><div class="chips">${st.female ? chip(st.earrings, 'data-ear', 'Серьги') : FACE_M.map(([k, n]) => chip(st.face === k, `data-face="${k}"`, n)).join('')}</div></div>
               <div class="fld"><span>Спортивный костюм</span>${sw('sport', SPORT)}</div>
             </div>
           </div>
@@ -742,12 +747,12 @@ const UI = (() => {
         if (cv) {
           const g = cv.getContext('2d');
           g.imageSmoothingEnabled = false;
-          g.clearRect(0, 0, 96, 162);
+          g.clearRect(0, 0, 96, 171);
           const sheetCv = Art.charSheet(look());
           spin += 1;
           const dir = [0, 2, 3, 1][Math.floor(spin / 50) % 4];
           const f = [1, 0, 2, 0][Math.floor(spin / 8) % 4];
-          g.drawImage(sheetCv, f * 16, dir * Art.FH, 16, Art.FH, 0, 0, 96, Art.FH * 6);
+          g.drawImage(sheetCv, f * Art.FW, dir * Art.FH, Art.FW, Art.FH, 0, 0, Art.FW * 3, Art.FH * 3);
         }
         raf = requestAnimationFrame(draw);
       };
@@ -761,12 +766,15 @@ const UI = (() => {
         const hs = t.closest('[data-hs]');
         if (hs) { st.hairStyle = hs.dataset.hs; Sfx.play('click'); render(); return; }
         if (t.closest('[data-gl]')) { st.glasses = !st.glasses; render(); return; }
+        if (t.closest('[data-ear]')) { st.earrings = !st.earrings; Sfx.play('click'); render(); return; }
+        const fc = t.closest('[data-face]');
+        if (fc) { st.face = fc.dataset.face; Sfx.play('click'); render(); return; }
         if (t.closest('[data-go]')) {
           const name = (st.name || '').trim() || (st.female ? 'Дана' : 'Нурлан');
           cancelAnimationFrame(raf);
           popModal(el);
           Sfx.play('success');
-          resolve({ name, sportColor: st.sport, base: { female: st.female, skin: st.skin, hair: st.hair, hairStyle: st.hairStyle, glasses: st.glasses, from: st.from } });
+          resolve({ name, sportColor: st.sport, base: { female: st.female, skin: st.skin, hair: st.hair, hairStyle: st.hairStyle, glasses: st.glasses, from: st.from, ...feat() } });
         }
       });
     });

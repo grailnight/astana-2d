@@ -28,7 +28,8 @@ const G = {
       clothes: { owned: ['sport'], outfit: 'sport', outer: null, hat: null },
       flags: {},
       daily: {},
-      stats: { deliveries: 0, baristaShifts: 0, officeShifts: 0, goodShifts: 0, lessons: 0, toys: 0 },
+      stats: { deliveries: 0, baristaShifts: 0, officeShifts: 0, goodShifts: 0, lessons: 0, toys: 0, gigs: 0 },
+      crime: 0, ads: {}, jobTrack: null, paperDay: -1,
       quests: {},
       job: { hired: false, level: 0 },
       rent: { due: 7, amount: 20000, locked: false },
@@ -54,7 +55,8 @@ const G = {
   save() {
     if (!this.s) return;
     const p = Ents.player;
-    this.s.pos = { x: p.x / TILE, y: p.y / TILE, dir: p.dir };
+    // в помещении сохраняем позицию у двери на улице
+    this.s.pos = (typeof Inside !== 'undefined' && Inside.outsidePos()) || { x: p.x / TILE, y: p.y / TILE, dir: p.dir };
     Store.set(SAVE_KEY, this.s);
   },
   hasSave() { return !!Store.get(SAVE_KEY); },
@@ -167,6 +169,7 @@ const G = {
     if (s.delivery && s.delivery.stage === 'drop' && this.now() - s.delivery.deadline > 600) { s.delivery = null; UI.toast(`Заказ отменён: ты не ${gx('успел', 'успела')} его доставить.`, 'bad'); }
     Romance.onNewDay();
     Life.onNewDay();
+    City.onNewDay();
     this.events.push(() => Quests.onNewDay());
   },
 
@@ -221,6 +224,7 @@ const G = {
       female: b.female, skin: b.skin, hair: b.hair, hairStyle: b.hairStyle,
       outfit: o.outfit, top: o.top || s.sportColor, bottom: o.bottom || shade(s.sportColor, -0.35), shoes: o.shoes || '#2a2420',
       outer: null, outerColor: null, hat: null, hatColor: null, glasses: b.glasses, bag: !!s.delivery,
+      beard: !!b.beard, mustache: !!b.mustache, earrings: !!b.earrings, tights: b.female && this.season() === 'winter' ? '#2b2b2b' : null,
     };
     if (c.outfit === 'sport') { L.top = s.sportColor; L.bottom = shade(s.sportColor, -0.3); }
     if (c.outfit === 'gala' && b.female) { L.top = '#7a1f3d'; }

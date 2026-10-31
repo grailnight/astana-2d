@@ -41,218 +41,288 @@ const Art = (() => {
   }
 
   /* ---------------- Персонажи ---------------- */
+  // Кадр 32×57 при отрисовке в половину пикселя мира: взрослые пропорции и чёткие признаки пола —
+  // у мужчин широкие плечи, густые брови, стрижки, борода и усы; у женщин талия, губы, ресницы,
+  // длинные волосы, серьги, юбки и платья.
 
-  const FW = 16, FH = 27; // кадр с запасом под обводку, чтобы кадры не залезали друг на друга
+  const FW = 32, FH = 57;
 
-  function drawHat(R, L, dir) {
-    const c = L.hatColor || '#6b4a32';
+  function palette(L) {
+    const skin = L.skin;
+    return {
+      skin, skinD: shade(skin, -0.14), skinDD: shade(skin, -0.3),
+      hair: L.hair, hairD: shade(L.hair, -0.3), hairL: shade(L.hair, 0.25),
+      eye: '#231a1c', lips: L.lips || '#c24d68', blush: mix(skin, '#ff8f9a', 0.35),
+    };
+  }
+
+  function garments(L) {
+    const fem = !!L.female;
+    const o = L.outfit;
+    const puffer = L.outer === 'puffer';
+    let skirt = null;
+    if (fem && (o === 'casual' || o === 'apron')) skirt = 'skirt';
+    if (fem && o === 'suit') skirt = 'pencil';
+    if (fem && o === 'gala') skirt = 'gown';
+    return { fem, o, puffer, top: L.top || '#5b6c8f', bottom: L.bottom || '#2a3550', shoes: L.shoes || '#2a2420', skirt, robe: o === 'chapan', outer: L.outerColor || '#2d4f7c' };
+  }
+
+  const BODY = {
+    m: { sh: [7, 24], ch: [9, 22], wa: [10, 21], hip: [10, 21], armL: [5, 7], armR: [24, 26], legL: [11, 15], legR: [16, 20], shoeL: [10, 15], shoeR: [16, 21], armEnd: 31 },
+    f: { sh: [9, 22], ch: [10, 21], wa: [11, 20], hip: [10, 21], armL: [7, 8], armR: [23, 24], legL: [12, 15], legR: [16, 19], shoeL: [12, 15], shoeR: [16, 19], armEnd: 30 },
+  };
+
+  function hatFront(R, L, back) {
+    const c = L.hatColor || '#6b4a32', cL = shade(c, 0.25), cD = shade(c, -0.3);
     switch (L.hat) {
-      case 'ushanka':
-        R(3, 0, 10, 3, c); R(4, 2, 8, 1, shade(c, 0.25));
-        if (dir === 0) { R(2, 3, 2, 5, c); R(12, 3, 2, 5, c); }
-        else if (dir === 3) { R(3, 3, 10, 3, c); }
-        else { R(4, 3, 3, 5, c); }
+      case 'ushanka': R(9, 1, 14, 5, c); R(10, 5, 12, 1, cL); R(8, 6, 3, 8, c); R(21, 6, 3, 8, c); if (back) R(9, 6, 14, 5, c); break;
+      case 'beanie': R(10, 1, 12, 5, c); R(9, 5, 14, 2, cL); R(14, 0, 4, 2, shade(c, 0.5)); if (back) R(9, 6, 14, 2, c); break;
+      case 'kalpak': R(12, 0, 8, 2, '#f3f0e6'); R(10, 2, 12, 4, '#f3f0e6'); R(9, 6, 14, 1, '#2a2a2a'); R(9, 4, 2, 3, '#2a2a2a'); R(21, 4, 2, 3, '#2a2a2a'); if (!back) R(15, 3, 2, 2, '#c0392b'); break;
+      case 'cap': R(10, 2, 12, 4, c); R(11, 2, 4, 1, cL); if (!back) R(9, 6, 14, 2, cD); else R(10, 6, 12, 1, cD); break;
+      case 'kerchief': {
+        // платок: закрывает волосы, обрамляет лицо, узел под подбородком, узор в горошек
+        const dot = L.hatColor && L.hatColor.toLowerCase() === '#f4f0f0' ? '#9fb3c8' : '#f4f0e6';
+        if (back) {
+          R(10, 1, 12, 2, c); R(9, 3, 14, 12, c); R(10, 15, 12, 2, c); R(12, 17, 8, 2, c); R(14, 19, 4, 2, c); R(15, 21, 2, 1, cD);
+          R(12, 5, 1, 1, dot); R(17, 4, 1, 1, dot); R(20, 8, 1, 1, dot); R(11, 10, 1, 1, dot); R(15, 9, 1, 1, dot); R(18, 13, 1, 1, dot); R(13, 15, 1, 1, dot); R(16, 18, 1, 1, dot);
+        } else {
+          R(11, 0, 10, 1, c); R(9, 1, 14, 5, c); R(8, 5, 3, 11, c); R(21, 5, 3, 11, c); R(9, 16, 3, 1, c); R(20, 16, 3, 1, c);
+          R(10, 6, 12, 1, cD); R(10, 6, 1, 9, cD); R(21, 6, 1, 9, cD); // кромка вокруг лица
+          R(11, 2, 4, 1, cL); R(12, 3, 1, 1, dot); R(16, 2, 1, 1, dot); R(19, 4, 1, 1, dot); R(9, 8, 1, 1, dot); R(22, 11, 1, 1, dot); R(9, 13, 1, 1, dot);
+          R(14, 16, 4, 2, c); R(15, 16, 2, 1, cD); R(13, 18, 2, 2, c); R(17, 18, 2, 2, c); // узел и кончики
+        }
         break;
-      case 'beanie':
-        R(3, 0, 10, 3, c); R(3, 3, 10, 1, shade(c, 0.3)); R(7, -1, 2, 1, shade(c, 0.5));
-        break;
-      case 'kalpak':
-        R(5, -1, 6, 1, '#f3f0e6'); R(4, 0, 8, 3, '#f3f0e6'); R(3, 3, 10, 1, '#2a2a2a');
-        if (dir === 0) R(7, 0, 2, 3, '#e2ddcf');
-        break;
-      case 'cap':
-        R(4, 0, 8, 3, c);
-        if (dir === 0) R(4, 3, 8, 1, shade(c, -0.3));
-        else if (dir === 2) R(10, 3, 4, 1, shade(c, -0.3));
-        break;
-      case 'kerchief':
-        R(3, 0, 10, 3, c); R(3, 3, 2, 6, c); R(11, 3, 2, 6, c); R(4, 1, 8, 1, shade(c, 0.25));
-        if (dir === 3) R(3, 3, 10, 7, c);
-        if (dir === 2) { R(3, 3, 4, 7, c); }
-        break;
-      case 'saukele':
-        R(6, -1, 4, 1, '#f2c14e'); R(5, 0, 6, 1, '#c0392b'); R(4, 1, 8, 2, '#c0392b');
-        R(4, 2, 8, 1, '#f2c14e'); R(3, 3, 10, 1, '#f2c14e');
-        if (dir !== 2) { R(2, 4, 1, 8, '#f3f0e6'); R(13, 4, 1, 8, '#f3f0e6'); }
-        break;
+      }
+      case 'police': R(10, 2, 12, 4, '#1f3a6b'); R(9, 5, 14, 2, '#142846'); R(15, 3, 2, 2, '#f2c14e'); break;
+      case 'saukele': R(13, 0, 6, 2, '#c0392b'); R(12, 2, 8, 3, '#c0392b'); R(11, 5, 10, 1, '#f2c14e'); R(14, 1, 1, 1, '#f2c14e'); R(17, 3, 1, 1, '#f2c14e'); R(8, 6, 2, 18, '#f3f0e6'); R(22, 6, 2, 18, '#f3f0e6'); break;
       default:
     }
   }
 
-  function drawHairFront(R, L) {
-    const h = L.hair, hs = L.hairStyle, hl = shade(h, 0.2);
+  function hairFront(R, L, P) {
     if (L.hat === 'kerchief' || L.hat === 'saukele') return;
-    switch (hs) {
-      case 'buzz':
-        R(4, 1, 8, 2, h); R(3, 2, 1, 2, h); R(12, 2, 1, 2, h); break;
+    const h = P.hair, hD = P.hairD, hL = P.hairL;
+    switch (L.hairStyle) {
+      case 'buzz': R(11, 3, 10, 1, h); R(10, 4, 12, 2, h); R(9, 6, 1, 2, hD); R(22, 6, 1, 2, hD); break;
+      case 'side': R(11, 1, 10, 2, h); R(10, 3, 12, 3, h); R(9, 4, 2, 5, h); R(21, 4, 2, 5, h); R(13, 6, 8, 1, h); R(17, 7, 4, 1, hD); R(12, 2, 5, 1, hL); break;
       case 'long':
-        R(4, 1, 8, 2, h); R(4, 3, 3, 1, h); R(9, 3, 3, 1, h);
-        R(2, 3, 2, 10, h); R(12, 3, 2, 10, h); R(5, 1, 3, 1, hl); break;
+        R(11, 1, 10, 2, h); R(9, 3, 14, 3, h); R(10, 6, 4, 2, h); R(18, 6, 4, 2, h);
+        R(8, 5, 3, 20, h); R(21, 5, 3, 20, h); R(9, 25, 2, 2, hD); R(21, 25, 2, 2, hD);
+        R(10, 8, 1, 14, hD); R(21, 8, 1, 14, hD); R(12, 2, 4, 1, hL); R(8, 9, 1, 8, hL); break;
       case 'bob':
-        R(4, 1, 8, 2, h); R(4, 3, 8, 1, h); R(3, 2, 1, 7, h); R(12, 2, 1, 7, h); R(5, 1, 3, 1, hl); break;
+        R(11, 1, 10, 2, h); R(9, 3, 14, 3, h); R(10, 6, 12, 1, h); R(8, 5, 3, 12, h); R(21, 5, 3, 12, h);
+        R(8, 16, 3, 1, hD); R(21, 16, 3, 1, hD); R(12, 2, 4, 1, hL); break;
       case 'bun':
-        R(4, 1, 8, 2, h); R(4, 3, 2, 1, h); R(10, 3, 2, 1, h); R(3, 2, 1, 4, h); R(12, 2, 1, 4, h);
-        R(6, -1, 4, 2, h); break;
+        R(11, 2, 10, 1, h); R(10, 3, 12, 3, h); R(13, 0, 6, 3, h); R(14, 0, 4, 1, hL); R(9, 5, 2, 5, h); R(21, 5, 2, 5, h); R(9, 10, 1, 3, hD); break;
       case 'pony':
-        R(4, 1, 8, 2, h); R(4, 3, 4, 1, h); R(3, 2, 1, 5, h); R(12, 2, 1, 5, h); R(5, 1, 3, 1, hl); break;
+        R(11, 1, 10, 2, h); R(9, 3, 14, 3, h); R(10, 6, 6, 1, h); R(9, 5, 2, 6, h); R(21, 5, 2, 6, h);
+        R(22, 8, 2, 10, h); R(23, 17, 1, 3, hD); R(12, 2, 4, 1, hL); break;
       default: // short
-        R(4, 1, 8, 2, h); R(4, 3, 3, 1, h); R(8, 3, 4, 1, h); R(3, 2, 1, 4, h); R(12, 2, 1, 4, h); R(5, 1, 3, 1, hl);
+        R(11, 2, 10, 1, h); R(10, 3, 12, 3, h); R(9, 5, 2, 4, h); R(21, 5, 2, 4, h); R(10, 6, 5, 1, h); R(12, 3, 4, 1, hL);
     }
   }
 
-  function drawHairBack(R, L) {
-    const h = L.hair, hs = L.hairStyle;
+  function hairBack(R, L, P) {
     if (L.hat === 'kerchief' || L.hat === 'saukele') return;
-    switch (hs) {
-      case 'buzz': R(4, 1, 8, 6, h); break;
-      case 'long': R(3, 1, 10, 13, h); break;
-      case 'bob': R(3, 1, 10, 9, h); break;
-      case 'bun': R(3, 1, 10, 8, h); R(6, -1, 4, 3, shade(h, 0.1)); break;
-      case 'pony': R(3, 1, 10, 7, h); R(7, 8, 2, 6, h); R(6, 7, 4, 1, '#c0392b'); break;
-      default: R(3, 1, 10, 8, h);
+    const h = P.hair, hD = P.hairD;
+    switch (L.hairStyle) {
+      case 'buzz': R(10, 3, 12, 10, hD); break;
+      case 'long': R(11, 1, 10, 2, h); R(9, 3, 14, 3, h); R(8, 5, 16, 21, h); R(9, 26, 14, 1, hD); R(12, 8, 1, 16, hD); R(19, 8, 1, 16, hD); break;
+      case 'bob': R(11, 1, 10, 2, h); R(9, 3, 14, 3, h); R(8, 5, 16, 12, h); R(8, 16, 16, 1, hD); break;
+      case 'bun': R(10, 2, 12, 12, h); R(13, 0, 6, 4, h); R(13, 4, 6, 1, hD); break;
+      case 'pony': R(10, 2, 12, 11, h); R(14, 12, 4, 14, h); R(14, 11, 4, 1, '#c0392b'); R(15, 14, 1, 10, hD); break;
+      default: R(11, 2, 10, 1, h); R(10, 3, 12, 10, h); R(9, 5, 1, 5, h); R(22, 5, 1, 5, h); R(11, 12, 10, 1, hD);
     }
   }
 
-  function drawHairSide(R, L) {
-    const h = L.hair, hs = L.hairStyle;
-    if (L.hat === 'kerchief' || L.hat === 'saukele') return;
-    switch (hs) {
-      case 'buzz': R(5, 1, 7, 2, h); R(5, 3, 2, 3, h); break;
-      case 'long': R(4, 1, 8, 2, h); R(3, 3, 4, 11, h); R(7, 3, 1, 2, h); break;
-      case 'bob': R(4, 1, 8, 2, h); R(4, 3, 4, 7, h); break;
-      case 'bun': R(4, 1, 8, 2, h); R(4, 3, 3, 5, h); R(3, 0, 3, 3, h); break;
-      case 'pony': R(4, 1, 8, 2, h); R(4, 3, 3, 4, h); R(2, 4, 2, 7, h); R(3, 3, 2, 1, '#c0392b'); break;
-      default: R(4, 1, 8, 2, h); R(4, 3, 3, 5, h); R(7, 3, 2, 1, h);
+  function headFront(R, L, P, fem) {
+    R(12, 3, 8, 1, P.skin); R(11, 4, 10, 1, P.skin); R(10, 5, 12, 9, P.skin); R(11, 14, 10, 1, P.skin); R(12, 15, 8, 1, P.skinD);
+    R(21, 5, 1, 9, P.skinD); R(9, 8, 1, 3, P.skinD); R(22, 8, 1, 3, P.skinD);
+    if (fem) { R(12, 7, 3, 1, P.hairD); R(17, 7, 3, 1, P.hairD); }
+    else { R(11, 7, 4, 1, P.hairD); R(17, 7, 4, 1, P.hairD); R(12, 8, 3, 1, P.hairD); R(17, 8, 3, 1, P.hairD); }
+    R(12, 9, 2, 2, P.eye); R(18, 9, 2, 2, P.eye); R(13, 9, 1, 1, '#ffffff'); R(19, 9, 1, 1, '#ffffff');
+    if (fem) { R(11, 9, 1, 1, P.eye); R(20, 9, 1, 1, P.eye); R(11, 12, 2, 1, P.blush); R(19, 12, 2, 1, P.blush); }
+    R(16, 11, 1, 2, P.skinD);
+    if (L.beard) { R(10, 11, 2, 4, P.hair); R(20, 11, 2, 4, P.hair); R(11, 13, 10, 2, P.hair); R(12, 15, 8, 1, P.hairD); }
+    if (L.mustache || L.beard) R(13, 12, 6, 1, P.hairD);
+    if (fem) { R(14, 13, 4, 1, P.lips); R(15, 14, 2, 1, shade(P.lips, 0.25)); } else R(14, 13, 4, 1, L.beard ? P.hairD : P.skinDD);
+    if (L.glasses) { // тонкая оправа вокруг глаз, глаза видны
+      const gf = '#4b4f5c';
+      R(11, 8, 4, 1, gf); R(17, 8, 4, 1, gf); R(11, 9, 1, 2, gf); R(14, 9, 1, 2, gf); R(17, 9, 1, 2, gf); R(20, 9, 1, 2, gf);
+      R(12, 11, 2, 1, gf); R(18, 11, 2, 1, gf); R(15, 9, 2, 1, gf); R(10, 9, 1, 1, gf); R(21, 9, 1, 1, gf);
     }
   }
 
-  function torsoColors(L) {
-    if (L.outer === 'puffer') return { main: L.outerColor || '#2d4f7c', sleeve: L.outerColor || '#2d4f7c' };
-    switch (L.outfit) {
-      case 'suit': return { main: L.top || '#2b2f3a', sleeve: L.top || '#2b2f3a' };
-      case 'apron': return { main: L.top || '#f0f0f0', sleeve: L.top || '#f0f0f0' };
-      default: return { main: L.top, sleeve: L.top };
-    }
+  function headBack(R, P) {
+    R(12, 3, 8, 1, P.skin); R(11, 4, 10, 1, P.skin); R(10, 5, 12, 9, P.skin); R(11, 14, 10, 1, P.skinD); R(12, 15, 8, 1, P.skinD);
+    R(9, 8, 1, 3, P.skinD); R(22, 8, 1, 3, P.skinD);
   }
 
-  // dir: 0 вниз, 1 влево, 2 вправо, 3 вверх; f: 0 стоит, 1/2 шаги
-  function drawChar(g, L, dir, f) {
-    if (dir === 1) {
-      g.save(); g.translate(FW, 0); g.scale(-1, 1);
-      drawChar(g, L, 2, f);
-      g.restore();
-      return;
+  // Вид спереди (back=false) и со спины (back=true); f — кадр ходьбы
+  function drawFront(g, L, back, f) {
+    const R = rectFn(g), P = palette(L), C = garments(L), B = C.fem ? BODY.f : BODY.m;
+    const S = (r, y0, y1, c) => R(r[0], y0, r[1] - r[0] + 1, y1 - y0 + 1, c);
+    const lUp = f === 2 ? 2 : 0, rUp = f === 1 ? 2 : 0;
+    const T = C.puffer ? C.outer : C.top;
+    // ноги и обувь
+    const bare = C.skirt && C.skirt !== 'gown';
+    const legC = bare ? (L.tights || P.skinD) : C.bottom;
+    const legTop = C.skirt === 'gown' ? 49 : bare ? 40 : C.robe ? 44 : 34;
+    S(B.legL, legTop, 50 - lUp, legC); S(B.legR, legTop, 50 - rUp, legC);
+    R(B.legL[1], legTop, 1, 51 - legTop - lUp, shade(legC, -0.18)); R(B.legR[1], legTop, 1, 51 - legTop - rUp, shade(legC, -0.25));
+    if (C.o === 'sport' && !C.skirt) { R(B.legL[0], legTop, 1, 51 - legTop - lUp, '#f4f4f4'); R(B.legR[1], legTop, 1, 51 - legTop - rUp, '#f4f4f4'); }
+    S(B.shoeL, 51 - lUp, 53 - lUp, C.shoes); S(B.shoeR, 51 - rUp, 53 - rUp, C.shoes);
+    R(B.shoeL[0], 51 - lUp, B.shoeL[1] - B.shoeL[0] + 1, 1, shade(C.shoes, 0.25)); R(B.shoeR[0], 51 - rUp, B.shoeR[1] - B.shoeR[0] + 1, 1, shade(C.shoes, 0.25));
+    // низ: брюки, юбка, платье, чапан
+    if (!C.skirt && !C.robe) { S(B.hip, 31, 35, C.bottom); R(15, 33, 2, 3, shade(C.bottom, -0.2)); }
+    if (C.skirt === 'skirt') { S([10, 21], 30, 38, C.bottom); S([9, 22], 38, 40, C.bottom); R(21, 30, 1, 10, shade(C.bottom, -0.2)); R(13, 33, 1, 6, shade(C.bottom, -0.12)); R(18, 33, 1, 6, shade(C.bottom, -0.12)); }
+    if (C.skirt === 'pencil') { S([11, 20], 30, 40, C.bottom); R(20, 30, 1, 11, shade(C.bottom, -0.2)); if (!back) R(15, 37, 2, 4, shade(C.bottom, -0.18)); }
+    if (C.skirt === 'gown') for (let y = 27; y <= 50; y++) { const w = 6 + Math.floor((y - 27) / 3); R(16 - w, y, w * 2, 1, C.top); R(15 + w, y, 1, 1, shade(C.top, -0.25)); if (y % 6 === 0) R(16 - w + 3, y, 1, 1, shade(C.top, -0.12)); }
+    if (C.robe) {
+      S([8, 23], 19, 44, C.top); R(23, 19, 1, 26, shade(C.top, -0.2)); R(8, 43, 16, 1, '#f2c14e');
+      if (!back) { R(15, 19, 2, 25, '#f2c14e'); R(14, 20, 1, 23, shade(C.top, 0.18)); for (let y = 23; y < 43; y += 5) { R(10, y, 1, 1, '#f2c14e'); R(21, y, 1, 1, '#f2c14e'); } }
     }
-    const R = rectFn(g);
-    const skin = L.skin, skinD = shade(skin, -0.15);
-    const tc = torsoColors(L);
-    const puffer = L.outer === 'puffer';
-    const robe = !puffer && (L.outfit === 'chapan' || (L.outfit === 'gala' && L.female));
-    const leg = L.bottom, shoe = L.shoes || '#2a2420';
-
-    if (dir === 0 || dir === 3) {
-      const lUp = f === 2 ? 1 : 0, rUp = f === 1 ? 1 : 0;
-      // ноги
-      if (!robe) {
-        R(5, 17, 3, 4 - lUp, leg); R(8, 17, 3, 4 - rUp, leg);
-        R(7, 17, 1, 3, shade(leg, -0.2));
-        if (L.outfit === 'sport') { R(5, 17, 1, 4 - lUp, '#f4f4f4'); R(10, 17, 1, 4 - rUp, '#f4f4f4'); }
-      } else {
-        R(5, 20, 3, 1 - lUp, leg); R(8, 20, 3, 1 - rUp, leg);
-      }
-      R(5, 21 - lUp, 3, 2, shoe); R(8, 21 - rUp, 3, 2, shoe);
-      // руки
-      const la = f === 1 ? 1 : 0, ra = f === 2 ? 1 : 0;
-      const aw = puffer ? 3 : 2;
-      const lx = puffer ? 1 : 2;
-      R(lx, 11 + la, aw, 5, tc.sleeve); R(12, 11 + ra, aw, 5, tc.sleeve);
-      R(2, 16 + la, 2, 1, skin); R(12, 16 + ra, 2, 1, skin);
-      if (L.outfit === 'sport' && !puffer) { R(2, 11 + la, 1, 5, '#f4f4f4'); R(13, 11 + ra, 1, 5, '#f4f4f4'); }
-      if (L.outfit === 'chapan' && !puffer) { R(2, 15 + la, 2, 1, '#f2c14e'); R(12, 15 + ra, 2, 1, '#f2c14e'); }
-      // корпус
-      if (robe) {
-        R(4, 11, 8, 6, tc.main); R(3, 16, 10, 4, tc.main); R(3, 19, 10, 1, shade(tc.main, -0.2));
-        if (L.outfit === 'chapan') {
-          R(3, 19, 10, 1, '#f2c14e');
-          if (dir === 0) { R(7, 11, 2, 9, '#f2c14e'); R(7, 12, 2, 7, shade(tc.main, 0.15)); }
-        } else {
-          R(4, 15, 8, 1, '#f2c14e');
-        }
-      } else if (puffer) {
-        R(3, 11, 10, 7, tc.main); R(3, 13, 10, 1, shade(tc.main, -0.22)); R(3, 16, 10, 1, shade(tc.main, -0.22));
-        R(4, 10, 8, 1, '#c9b79c');
-        if (dir === 0) R(7, 11, 2, 7, shade(tc.main, -0.3));
-      } else {
-        R(4, 11, 8, 6, tc.main); R(11, 11, 1, 6, shade(tc.main, -0.18)); R(4, 16, 8, 1, shade(tc.main, -0.2));
-        if (dir === 0) {
-          switch (L.outfit) {
-            case 'suit':
-              R(6, 11, 4, 2, '#f4f4f4'); R(7, 13, 2, 1, '#f4f4f4'); R(7, 12, 2, 4, L.tie || '#a83232'); break;
-            case 'gala':
-              R(6, 11, 4, 2, '#f4f4f4'); R(7, 11, 2, 1, '#1b1b1b'); R(5, 14, 1, 1, '#f2c14e'); R(10, 14, 1, 1, '#f2c14e'); break;
-            case 'sport': R(7, 11, 1, 6, '#f4f4f4'); break;
-            case 'hoodie':
-              R(6, 11, 1, 2, '#f4f4f4'); R(9, 11, 1, 2, '#f4f4f4'); R(5, 14, 6, 2, shade(tc.main, -0.15)); break;
-            case 'courier': R(4, 14, 8, 1, '#e8f0f0'); R(7, 11, 2, 2, shade(tc.main, -0.25)); break;
-            case 'apron': R(5, 12, 6, 7, L.apron || '#6b4a32'); R(5, 12, 6, 1, shade(L.apron || '#6b4a32', 0.25)); break;
-            default: R(6, 11, 4, 1, shade(tc.main, -0.25));
-          }
-        } else {
-          if (L.outfit === 'hoodie') R(4, 11, 8, 2, shade(tc.main, -0.15));
-          if (L.outfit === 'courier') R(4, 14, 8, 1, '#e8f0f0');
-        }
-      }
-      // шея и голова
-      R(6, 10, 4, 1, skinD);
-      R(4, 2, 8, 8, skin); R(4, 9, 8, 1, skinD);
-      if (dir === 0) {
-        R(6, 6, 1, 2, '#2a1d1a'); R(9, 6, 1, 2, '#2a1d1a');
-        R(5, 8, 1, 1, shade(skin, -0.08)); R(10, 8, 1, 1, shade(skin, -0.08));
-        if (L.glasses) { R(5, 6, 3, 1, '#222'); R(8, 6, 3, 1, '#222'); R(5, 7, 1, 1, '#222'); R(10, 7, 1, 1, '#222'); }
-        drawHairFront(R, L);
-      } else {
-        drawHairBack(R, L);
-        if (L.bag) { R(4, 11, 8, 7, '#e8a317'); R(4, 11, 8, 1, '#f6c343'); R(6, 13, 4, 2, '#1d3a4a'); }
-      }
-      drawHat(R, L, dir);
-      return;
-    }
-
-    // Профиль (вправо)
-    const front = f === 1, back = f === 2;
-    if (!robe) {
-      if (f === 0) { R(6, 17, 4, 4, leg); R(6, 21, 5, 2, shoe); }
-      else {
-        R(8, 17, 3, 4, front ? leg : shade(leg, -0.2)); R(8, 21, 4, 2, shoe);
-        R(5, 17, 3, 3, front ? shade(leg, -0.2) : leg); R(4, 20, 3, 2, shoe);
-      }
-    } else {
-      R(4, 16, 8, 4, tc.main);
-      if (L.outfit === 'chapan') R(4, 19, 8, 1, '#f2c14e');
-      if (f === 0) R(6, 21, 5, 2, shoe); else { R(8, 21, 4, 2, shoe); R(4, 20, 3, 2, shoe); }
-    }
-    // задняя рука
     // корпус
-    if (puffer) { R(4, 11, 8, 7, tc.main); R(4, 13, 8, 1, shade(tc.main, -0.22)); R(4, 16, 8, 1, shade(tc.main, -0.22)); R(6, 10, 5, 1, '#c9b79c'); }
-    else if (!robe) { R(5, 11, 6, 6, tc.main); R(5, 16, 6, 1, shade(tc.main, -0.2)); if (L.outfit === 'courier') R(5, 14, 6, 1, '#e8f0f0'); if (L.outfit === 'apron') R(9, 12, 2, 7, L.apron || '#6b4a32'); }
-    else R(5, 11, 6, 6, tc.main);
-    if (L.bag) { R(2, 11, 4, 7, '#e8a317'); R(2, 11, 4, 1, '#f6c343'); }
-    // рука
-    const ax = f === 0 ? 7 : front ? 8 : 6;
-    R(ax, 11, 2, 5, puffer ? shade(tc.sleeve, -0.1) : shade(tc.sleeve, -0.1));
-    R(ax + (front ? 1 : back ? -1 : 0), 16, 2, 1, skin);
+    if (!C.robe && C.skirt !== 'gown') {
+      S(B.sh, 18, 20, T); S(B.ch, 20, 27, T); S(B.wa, 28, 30, T); if (!C.fem) S(B.ch, 28, 31, T);
+      R(B.ch[1], 20, 1, 11, shade(T, -0.2));
+      if (!back && C.fem && !C.puffer) { R(11, 22, 3, 2, shade(T, 0.14)); R(18, 22, 3, 2, shade(T, 0.14)); R(12, 24, 8, 1, shade(T, -0.16)); }
+      if (!back && !C.fem) R(11, 25, 10, 1, shade(T, -0.1));
+    }
+    if (C.skirt === 'gown') { S(B.sh, 19, 20, C.top); S(B.ch, 20, 26, C.top); R(B.ch[1], 20, 1, 7, shade(C.top, -0.2)); }
+    if (!back && !C.puffer) {
+      switch (C.o) {
+        case 'sport': R(15, 18, 1, 13, '#e8e8e8'); R(13, 18, 6, 1, shade(T, -0.25)); break;
+        case 'hoodie': S([11, 20], 17, 19, shade(T, -0.15)); R(13, 20, 1, 4, '#f4f4f4'); R(18, 20, 1, 4, '#f4f4f4'); S([11, 20], 26, 29, shade(T, -0.12)); break;
+        case 'casual': if (C.fem) { R(14, 18, 4, 1, P.skin); R(15, 19, 2, 2, P.skin); R(11, 29, 10, 1, shade(C.bottom, -0.3)); } else { R(14, 18, 4, 2, P.skin); R(13, 22, 6, 3, shade(T, 0.25)); } break;
+        case 'suit':
+          if (C.fem) { R(14, 18, 4, 3, '#f4f4f4'); R(15, 21, 2, 2, '#f4f4f4'); R(15, 19, 2, 1, '#f2c14e'); R(13, 18, 1, 8, shade(T, -0.28)); R(18, 18, 1, 8, shade(T, -0.28)); }
+          else { R(13, 18, 6, 2, '#f4f4f4'); R(14, 20, 4, 2, '#f4f4f4'); R(15, 22, 2, 1, '#f4f4f4'); R(15, 19, 2, 8, L.tie || '#a83232'); R(12, 18, 1, 8, shade(T, -0.28)); R(19, 18, 1, 8, shade(T, -0.28)); R(15, 28, 1, 1, '#c9c9c9'); }
+          break;
+        case 'gala':
+          if (C.fem) { R(10, 18, 12, 2, P.skin); R(14, 18, 4, 1, '#f2c14e'); R(11, 27, 10, 1, '#f2c14e'); }
+          else { R(14, 18, 4, 4, '#f4f4f4'); R(14, 19, 4, 1, '#151515'); R(15, 20, 2, 1, '#151515'); R(19, 22, 2, 1, '#f2c14e'); R(15, 25, 1, 1, '#f2c14e'); R(15, 28, 1, 1, '#f2c14e'); }
+          break;
+        case 'apron': { const a = L.apron || '#6b4a32'; S([11, 20], 22, 40, a); R(13, 20, 6, 2, a); R(12, 18, 1, 4, a); R(19, 18, 1, 4, a); R(14, 28, 4, 3, shade(a, -0.2)); break; }
+        case 'courier': S(B.ch, 26, 26, '#e8f0f0'); R(13, 21, 3, 2, '#1d3a4a'); R(14, 18, 4, 1, shade(T, -0.3)); break;
+        case 'police': R(14, 18, 4, 2, '#e8eef2'); R(15, 20, 2, 6, '#142846'); R(18, 21, 2, 2, '#f2c14e'); S(B.ch, 29, 30, '#142846'); break;
+        default:
+      }
+    }
+    if (back && !C.puffer && C.o === 'hoodie') S([11, 20], 18, 22, shade(T, -0.15));
+    // пуховик: у женщин длинный приталенный, у мужчин короткий
+    if (C.puffer) {
+      const x0 = C.fem ? 9 : 7, x1 = C.fem ? 22 : 24, len = C.fem ? 42 : 34;
+      S([x0, x1], 18, len, C.outer); R(x1, 18, 1, len - 17, shade(C.outer, -0.22));
+      for (let y = 22; y < len; y += 4) S([x0, x1], y, y, shade(C.outer, -0.18));
+      S([10, 21], 16, 18, '#cdbb9e');
+      if (C.fem) S([10, 21], 29, 29, shade(C.outer, -0.4));
+      if (!back) R(15, 19, 1, len - 18, shade(C.outer, -0.35));
+    }
+    if (back && L.bag) { S([9, 22], 19, 32, '#e8a317'); R(9, 19, 14, 1, '#f6c343'); R(13, 23, 6, 3, '#1d3a4a'); }
+    // руки
+    const la = f === 1 ? 2 : f === 2 ? -1 : 0, ra = f === 2 ? 2 : f === 1 ? -1 : 0;
+    const arm = C.puffer ? C.outer : C.skirt === 'gown' ? P.skin : C.robe ? C.top : T;
+    const aL = C.puffer && !C.fem ? [4, 7] : B.armL, aR = C.puffer && !C.fem ? [24, 27] : B.armR;
+    S(aL, 19 + la, B.armEnd + la, arm); S(aR, 19 + ra, B.armEnd + ra, arm);
+    R(aR[1], 19 + ra, 1, B.armEnd - 18, shade(arm, -0.2));
+    S(aL, B.armEnd + 1 + la, B.armEnd + 3 + la, P.skin); S(aR, B.armEnd + 1 + ra, B.armEnd + 3 + ra, P.skin);
+    if (C.o === 'sport' && !C.puffer) { R(aL[0], 19 + la, 1, B.armEnd - 18, '#f4f4f4'); R(aR[1], 19 + ra, 1, B.armEnd - 18, '#f4f4f4'); }
+    if (C.robe) { S(aL, B.armEnd - 1 + la, B.armEnd + la, '#f2c14e'); S(aR, B.armEnd - 1 + ra, B.armEnd + ra, '#f2c14e'); }
+    // шея и голова
+    R(14, 16, 4, 2, P.skinD);
+    if (back) { headBack(R, P); hairBack(R, L, P); }
+    else { headFront(R, L, P, C.fem); hairFront(R, L, P); if (L.earrings) { R(9, 11, 1, 2, '#f2c14e'); R(22, 11, 1, 2, '#f2c14e'); } }
+    hatFront(R, L, back);
+  }
+
+  // Профиль, смотрит вправо; влево — зеркально
+  function drawSide(g, L, f) {
+    const R = rectFn(g), P = palette(L), C = garments(L);
+    const S = (x0, x1, y0, y1, c) => R(x0, y0, x1 - x0 + 1, y1 - y0 + 1, c);
+    const T = C.puffer ? C.outer : C.top;
+    const bare = C.skirt && C.skirt !== 'gown';
+    const legC = bare ? (L.tights || P.skinD) : C.bottom;
+    const legTop = C.skirt === 'gown' ? 49 : bare ? 40 : C.robe ? 44 : 34;
+    const legBack = shade(legC, -0.22);
+    if (f === 0) { S(13, 18, legTop, 50, legC); S(17, 18, legTop, 50, shade(legC, -0.15)); S(13, 21, 51, 53, C.shoes); }
+    else {
+      const fr = f === 1 ? legC : legBack, bk = f === 1 ? legBack : legC;
+      S(11, 14, legTop, 42 > legTop ? 42 : legTop, bk); S(10, 13, Math.max(legTop, 43), 49, bk); S(8, 13, 50, 52, C.shoes);
+      S(15, 18, legTop, 42 > legTop ? 42 : legTop, fr); S(16, 19, Math.max(legTop, 43), 50, fr); S(16, 22, 51, 53, C.shoes);
+    }
+    if (!C.skirt && !C.robe) S(12, 20, 31, 35, C.bottom);
+    if (C.skirt === 'skirt') { S(11, 21, 30, 37, C.bottom); S(10, 22, 38, 40, C.bottom); }
+    if (C.skirt === 'pencil') S(12, 20, 30, 40, C.bottom);
+    if (C.skirt === 'gown') for (let y = 27; y <= 50; y++) { const w = 5 + Math.floor((y - 27) / 3); S(16 - w, 16 + w, y, y, C.top); }
+    if (C.robe) { S(10, 21, 19, 44, C.top); S(10, 21, 43, 43, '#f2c14e'); S(20, 21, 19, 42, '#f2c14e'); }
+    // корпус
+    const tx0 = C.fem ? 12 : 11, tx1 = C.fem ? 20 : 21;
+    if (C.puffer) { const len = C.fem ? 42 : 34; S(10, 22, 18, len, C.outer); for (let y = 22; y < len; y += 4) S(10, 22, y, y, shade(C.outer, -0.18)); S(12, 20, 16, 18, '#cdbb9e'); }
+    else if (!C.robe) {
+      S(tx0, tx1, 18, C.skirt === 'gown' ? 26 : 30, T); S(tx0, tx0, 18, 30, shade(T, -0.2));
+      if (C.fem && C.skirt !== 'gown') S(tx1 + 1, tx1 + 1, 21, 24, T);
+      if (C.o === 'courier') S(tx0, tx1, 26, 26, '#e8f0f0');
+      if (C.o === 'apron') S(tx1 - 2, tx1 + 1, 22, 40, L.apron || '#6b4a32');
+      if (C.o === 'suit' && !C.fem) { S(tx1 - 1, tx1, 18, 24, '#f4f4f4'); S(tx1, tx1, 19, 26, L.tie || '#a83232'); }
+      if (C.o === 'hoodie') S(tx0, tx0 + 4, 17, 21, shade(T, -0.15));
+    }
+    if (L.bag) { S(6, 11, 19, 32, '#e8a317'); S(6, 11, 19, 19, '#f6c343'); }
     // голова
-    R(7, 10, 3, 1, skinD);
-    R(5, 2, 7, 8, skin); R(12, 6, 1, 1, skin); R(5, 9, 7, 1, skinD);
-    R(10, 5, 1, 2, '#2a1d1a');
-    if (L.glasses) { R(9, 5, 3, 1, '#222'); R(9, 6, 1, 1, '#222'); }
-    drawHairSide(R, L);
-    drawHat(R, L, 2);
+    R(15, 16, 4, 2, P.skinD);
+    R(13, 3, 8, 1, P.skin); R(12, 4, 9, 11, P.skin); R(13, 15, 7, 1, P.skinD);
+    R(21, 9, 1, 3, P.skin); R(21, 11, 1, 1, P.skinD);
+    R(15, 8, 2, 3, P.skinD);
+    R(18, 9, 2, 2, P.eye); R(19, 9, 1, 1, '#ffffff');
+    if (C.fem) { R(20, 8, 1, 1, P.eye); R(18, 7, 3, 1, P.hairD); R(19, 13, 2, 1, P.lips); R(17, 12, 2, 1, P.blush); }
+    else { R(17, 7, 4, 2, P.hairD); R(19, 13, 2, 1, P.skinDD); }
+    if (L.beard) { R(13, 11, 8, 4, P.hair); R(19, 13, 2, 1, P.hairD); }
+    if (L.mustache) R(18, 12, 3, 1, P.hairD);
+    if (L.glasses) { R(17, 8, 4, 1, '#4b4f5c'); R(17, 9, 1, 2, '#4b4f5c'); R(20, 9, 1, 2, '#4b4f5c'); R(18, 11, 2, 1, '#4b4f5c'); R(14, 9, 3, 1, '#4b4f5c'); }
+    // волосы
+    if (L.hat !== 'kerchief' && L.hat !== 'saukele') {
+      const h = P.hair, hD = P.hairD;
+      switch (L.hairStyle) {
+        case 'buzz': R(12, 3, 9, 2, hD); R(11, 5, 4, 6, hD); break;
+        case 'long': R(12, 1, 9, 4, h); R(9, 4, 7, 23, h); R(19, 5, 2, 3, h); R(10, 26, 5, 1, hD); R(12, 8, 1, 16, hD); break;
+        case 'bob': R(12, 1, 9, 4, h); R(9, 4, 7, 13, h); R(19, 5, 2, 2, h); break;
+        case 'bun': R(12, 2, 9, 4, h); R(10, 4, 6, 8, h); R(7, 3, 5, 5, h); break;
+        case 'pony': R(12, 1, 9, 4, h); R(10, 4, 6, 7, h); R(6, 8, 4, 14, h); R(9, 8, 2, 2, '#c0392b'); break;
+        case 'side': R(12, 1, 9, 4, h); R(10, 4, 5, 8, h); R(18, 5, 4, 2, h); break;
+        default: R(12, 2, 9, 3, h); R(10, 4, 5, 8, h); R(18, 5, 3, 1, h);
+      }
+    }
+    if (L.earrings) R(16, 11, 1, 2, '#f2c14e');
+    // шапки в профиль
+    const hc = L.hatColor || '#6b4a32';
+    switch (L.hat) {
+      case 'ushanka': R(11, 1, 11, 5, hc); R(13, 6, 3, 8, hc); break;
+      case 'beanie': R(11, 1, 11, 5, hc); R(11, 5, 11, 2, shade(hc, 0.3)); break;
+      case 'kalpak': R(12, 0, 8, 6, '#f3f0e6'); R(11, 6, 11, 1, '#2a2a2a'); break;
+      case 'cap': R(11, 2, 10, 4, hc); R(20, 5, 4, 1, shade(hc, -0.3)); break;
+      case 'police': R(11, 2, 10, 4, '#1f3a6b'); R(20, 5, 4, 1, '#142846'); break;
+      case 'kerchief': R(11, 0, 9, 1, hc); R(10, 1, 12, 6, hc); R(9, 6, 7, 10, hc); R(10, 16, 5, 2, hc); R(11, 18, 3, 2, hc); R(16, 6, 1, 9, shade(hc, -0.3)); R(17, 6, 5, 1, shade(hc, -0.3)); R(12, 3, 1, 1, '#f4f0e6'); R(18, 2, 1, 1, '#f4f0e6'); R(11, 10, 1, 1, '#f4f0e6'); R(13, 14, 1, 1, '#f4f0e6'); R(17, 17, 3, 2, hc); break;
+      case 'saukele': R(12, 0, 8, 6, '#c0392b'); R(12, 5, 8, 1, '#f2c14e'); R(9, 6, 3, 18, '#f3f0e6'); break;
+      default:
+    }
+    // рука — поверх корпуса, качается при ходьбе
+    const ax = f === 0 ? 15 : f === 1 ? 17 : 13;
+    const arm = C.puffer ? C.outer : C.skirt === 'gown' ? P.skin : C.robe ? C.top : T;
+    const aEnd = C.fem ? 30 : 31;
+    S(ax, ax + 2, 19, aEnd, shade(arm, -0.08)); S(ax + 2, ax + 2, 19, aEnd, shade(arm, -0.25));
+    S(ax, ax + 2, aEnd + 1, aEnd + 3, P.skin);
+    if (C.o === 'sport' && !C.puffer) S(ax, ax, 19, aEnd, '#f4f4f4');
+  }
+
+  function drawChar(g, L, dir, f) {
+    if (dir === 1) { g.save(); g.translate(FW, 0); g.scale(-1, 1); drawSide(g, L, f); g.restore(); return; }
+    if (dir === 2) { drawSide(g, L, f); return; }
+    drawFront(g, L, dir === 3, f);
   }
 
   const sheetCache = new Map();
 
-  // Возвращает спрайт-лист 3 кадра × 4 направления
+  // Спрайт-лист 3 кадра × 4 направления
   function charSheet(L) {
     const key = JSON.stringify(L);
     let cv = sheetCache.get(key);
@@ -262,7 +332,7 @@ const Art = (() => {
     for (let d = 0; d < 4; d++) {
       for (let f = 0; f < 3; f++) {
         g.save();
-        g.translate(f * FW, d * FH + 2);
+        g.translate(f * FW, d * FH + 1);
         drawChar(g, L, d, f);
         g.restore();
       }
@@ -273,13 +343,23 @@ const Art = (() => {
     return cv;
   }
 
+  // Отдельный кадр целиком в заданном масштабе — для интерфейса
+  function sprite(L, dir = 0, scale = 3, f = 0) {
+    const cv = makeCanvas(FW * scale, FH * scale);
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.drawImage(charSheet(L), f * FW, dir * FH, FW, FH, 0, 0, FW * scale, FH * scale);
+    return cv;
+  }
+
   function portrait(L, size = 64) {
     const sheet = charSheet(L);
     const cv = makeCanvas(size, size);
     const g = cv.getContext('2d');
     g.imageSmoothingEnabled = false;
-    const s = size / 16;
-    g.drawImage(sheet, 0, 1, 16, 16, 0, s * 0.5, size, size);
+    const k = Math.max(1, Math.floor(size / 22));
+    const off = Math.round((size - 22 * k) / 2);
+    g.drawImage(sheet, 5, 0, 22, 22, off, off + k, 22 * k, 22 * k);
     return cv;
   }
 
@@ -610,6 +690,7 @@ const Art = (() => {
 
   const WARM = ['#ffd27a', '#ffe3a3', '#ffc98a', '#fff0c8'];
 
+  const pick2 = (arr, v) => arr[Math.floor(Math.abs(v) * 997) % arr.length];
   function makeBuilding(o) {
     const W = o.w * TILE;
     const facade = o.facade;
@@ -625,6 +706,13 @@ const Art = (() => {
     R(0, 0, W, depth, roof);
     R(0, 0, W, 1, shade(roof, 0.25)); R(0, 0, 1, depth, shade(roof, 0.12)); R(W - 1, 0, 1, depth, shade(roof, -0.2));
     R(0, depth - 2, W, 2, shade(roof, -0.3));
+    // парапет и антенны на крыше
+    R(1, 1, W - 2, 1, shade(roof, 0.35)); R(1, depth - 3, W - 2, 1, shade(roof, 0.1));
+    if (o.style === 'panel' && depth > 14) {
+      const mx = Math.floor(W * 0.55);
+      R(mx, 3, 14, 8, shade(roof, -0.08)); R(mx, 3, 14, 1, shade(roof, 0.25)); R(mx, 10, 14, 1, shade(roof, -0.35));
+      for (let a = 0; a < 2; a++) { const ax = 8 + Math.floor(hash2(seed, a, 9) * (W * 0.4)); R(ax, 2, 1, 6, '#5d6670'); R(ax - 2, 3, 5, 1, '#5d6670'); R(ax - 1, 5, 3, 1, '#5d6670'); }
+    }
     if (depth > 14) {
       for (let i = 0; i < Math.floor(W / 36); i++) {
         const vx = 6 + Math.floor(hash2(seed, i) * (W - 16));
@@ -640,6 +728,13 @@ const Art = (() => {
 
     const doorX = o.doorX != null ? o.doorX * TILE : -100;
     const floorH = 12;
+    // цоколь из камня
+    if (o.style !== 'glass') {
+      R(0, H - 5, W, 3, shade(wall, -0.22));
+      for (let x = 0; x < W; x += 6) R(x + Math.floor(hash2(seed, x) * 4), H - 4, 2, 1, shade(wall, -0.32));
+    }
+    // швы панельного дома
+    if (o.style === 'panel') for (let x = 0; x < W; x += 20) R(x, depth + 3, 1, facade - 8, shade(wall, -0.07));
     const floors = Math.max(1, Math.floor((facade - 6) / floorH));
     const lit = (x, y, w, h, i) => { if (hash2(seed, i, 5) < (o.litRate ?? 0.6)) L(x, y, w, h, WARM[Math.floor(hash2(seed, i, 6) * 4)]); };
 
@@ -672,10 +767,25 @@ const Art = (() => {
             R(x, wy - 1, 6, 8, '#3b5a78'); R(x + 1, wy - 2, 4, 1, '#3b5a78'); R(x - 1, wy + 7, 8, 1, shade(wall, 0.2));
             lit(x, wy - 1, 6, 8, i++);
           } else {
-            R(x - 1, wy - 1, 8, 8, shade(wall, 0.15)); R(x, wy, 6, 6, '#3b5a78'); R(x, wy, 2, 1, '#7fb0cf');
-            lit(x, wy, 6, 6, i++);
-            if (style === 'panel' && f > 0 && (x / step) % 3 === 1) { R(x - 2, wy + 6, 10, 3, shade(wall, -0.12)); R(x - 2, wy + 6, 10, 1, shade(wall, 0.1)); }
-            if (style === 'modern' && f > 0) { R(x - 1, wy + 6, 8, 2, 'rgba(160,210,230,0.7)'); }
+            const hv = hash2(seed, x, f + 11);
+            const loggia = style === 'panel' && f > 0 && Math.round((x - 5) / step) % 3 === 1;
+            if (loggia) {
+              // застеклённая лоджия: рама, стекло с переплётами, парапет
+              R(x - 2, wy - 2, 10, 10, shade(wall, -0.08)); R(x - 1, wy - 1, 8, 4, '#8fb6cc'); R(x - 1, wy - 1, 8, 1, '#c6e0ec');
+              R(x + 1, wy - 1, 1, 4, shade(wall, 0.1)); R(x + 4, wy - 1, 1, 4, shade(wall, 0.1));
+              R(x - 2, wy + 3, 10, 5, shade(wall, 0.06)); R(x - 2, wy + 3, 10, 1, shade(wall, 0.22)); R(x - 2, wy + 8, 10, 1, shade(wall, -0.3));
+              if (hv < 0.35) R(x, wy + 4, 5, 1, pick2(['#c0392b', '#2f6fd1', '#f6c343', '#6cc35a'], hv)); // бельё на верёвке
+              lit(x - 1, wy - 1, 8, 4, i++);
+            } else {
+              // окно: рама, стекло с бликом, импост, подоконник, иногда шторы и кондиционер
+              R(x - 1, wy - 1, 8, 8, shade(wall, 0.18)); R(x, wy, 6, 6, '#35506c'); R(x, wy, 6, 2, '#5d86a6'); R(x, wy, 2, 1, '#9fcbe0');
+              R(x + 3, wy, 1, 6, shade(wall, 0.18));
+              if (hv > 0.72) { const cc = pick2(['#e8d3a8', '#c97a8a', '#9fb3c8', '#e3c76b'], hv * 3); R(x, wy, 1, 6, cc); R(x + 5, wy, 1, 6, cc); }
+              R(x - 1, wy + 7, 8, 1, shade(wall, 0.3)); R(x - 1, wy + 8, 8, 1, shade(wall, -0.18));
+              lit(x, wy, 6, 6, i++);
+              if (hv < 0.14 && f > 0 && style !== 'modern') { R(x + 1, wy + 9, 5, 3, '#e3e9ec'); R(x + 1, wy + 9, 5, 1, '#f4f7f8'); R(x + 2, wy + 10, 3, 1, '#9aa4ad'); }
+            }
+            if (style === 'modern' && f > 0) { R(x - 1, wy + 6, 8, 2, 'rgba(160,210,230,0.7)'); R(x - 1, wy + 6, 8, 1, 'rgba(230,245,250,0.8)'); }
           }
         }
         if (style === 'modern' && o.accent) {
@@ -709,10 +819,13 @@ const Art = (() => {
       }
     }
 
-    // дверь
+    // дверь с козырьком, ступенькой и домофоном
     if (o.doorX != null) {
       const dx = doorX;
+      R(dx, H - 20, 16, 2, '#9aa4ad'); R(dx, H - 20, 16, 1, '#c5ced4'); R(dx + 1, H - 18, 14, 1, 'rgba(10,15,25,0.35)');
+      L(dx + 7, H - 18, 2, 1, '#ffe3a3');
       R(dx + 2, H - 17, 12, 1, shade(wall, -0.35));
+      R(dx + 14, H - 11, 1, 2, '#2b2f36');
       R(dx + 3, H - 16, 10, 14, '#3a2c24');
       R(dx + 4, H - 15, 8, 6, '#7fb4cf'); R(dx + 8, H - 15, 1, 13, '#2a201a');
       L(dx + 4, H - 15, 8, 6, '#ffe3a3');
@@ -1068,7 +1181,7 @@ const Art = (() => {
   }
 
   return {
-    charSheet, portrait, icon, paintGround, tree, lamp, bench, busStop, fountain, car, makeBuilding,
+    charSheet, sprite, portrait, icon, paintGround, tree, lamp, bench, busStop, fountain, car, makeBuilding,
     baiterek, khanShatyr, akorda, mosque, pyramid, expo, station, arena, oldStation, stele, yurt, cat, FW, FH, outline,
   };
 })();

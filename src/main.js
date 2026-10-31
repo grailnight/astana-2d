@@ -54,8 +54,10 @@ const Main = (() => {
     }
     for (const ped of Ents.peds) {
       const d = dist(fx, fy, ped.x, ped.y - 4);
-      if (d < 16) out.push({ pri: 4, d, label: 'Заговорить с прохожим', x: ped.x, y: ped.y - 34, run: () => pedTalk(ped) });
+      if (d < 16) out.push({ pri: 4, d, label: ped.police ? 'Заговорить с патрульным' : 'Заговорить с прохожим', x: ped.x, y: ped.y - 34, run: () => pedTalk(ped) });
     }
+    const flock = City.flockNear(fx, fy);
+    if (flock) out.push({ pri: 3, d: dist(fx, fy, flock.x, flock.y), label: 'Покормить голубей', btn: ['ГОЛУБИ', 'bird'], x: flock.x, y: flock.y - 14, run: City.feedPigeons(Render.now()) });
     out.sort((a, b) => a.pri - b.pri || a.d - b.d);
     return out[0] || null;
   }
@@ -76,7 +78,7 @@ const Main = (() => {
   }
   function pedTalk(ped) {
     const winter = G.season() === 'winter';
-    const lines = winter && chance(0.5) ? PED_LINES_WINTER : PED_LINES;
+    const lines = ped.police ? City.POLICE_LINES : winter && chance(0.5) ? PED_LINES_WINTER : PED_LINES;
     ped.bubble = { text: lines[ped.lineIdx % lines.length], until: Render.now() + 4 };
     ped.lineIdx++;
     ped.pause = 3;
@@ -101,10 +103,14 @@ const Main = (() => {
     if (blocked) { UI.hint(null); near = null; return; }
     if (G.events.length) { runEvent(G.events.shift()); return; }
     const v = Input.vector();
+    if (Inside.active()) { updateInside(dt, v); return; }
     Ents.movePlayer(v.x, v.y, dt, 74 * G.speedMul());
     G.advance(dt * GAME_MIN_PER_SEC, { outdoor: true, walking: Ents.player.moving });
     Ents.updatePeds(dt);
     Ents.updateCars(dt, (c) => { if (chance(0.5)) Sfx.play('honk'); });
+    City.updatePigeons(dt, Render.now());
+    const stop = City.patrol(dt);
+    if (stop) { runEvent(stop); return; }
     questTimer -= dt;
     if (questTimer <= 0) { questTimer = 0.5; Quests.tick(); }
     districtTimer -= dt;
@@ -116,7 +122,22 @@ const Main = (() => {
     const card = Life.cardNear(Ents.player.x, Ents.player.y - 4);
     if (card) Life.collect(card);
     near = interactables();
-    UI.hint(near ? near.label : null);
+    UI.hint(near ? near.label : null, near && near.btn);
+    if (Input.take('action') && near) { Sfx.play('click'); Device.buzz(12); const n = near; runEvent(() => n.run()); }
+    if (Input.take('phone')) { Sfx.play('click'); UI.openPhone('quests'); }
+    if (Input.take('map')) { Sfx.play('click'); UI.openPhone('map'); }
+  }
+
+  // В помещении: тепло, без машин и прохожих, своя мебель
+  function updateInside(dt, v) {
+    Ents.movePlayer(v.x, v.y, dt, 62);
+    G.advance(dt * GAME_MIN_PER_SEC, { walking: Ents.player.moving });
+    questTimer -= dt;
+    if (questTimer <= 0) { questTimer = 0.5; Quests.tick(); }
+    Inside.update(dt);
+    if (!Inside.active()) { near = null; UI.hint(null); return; }
+    near = Inside.interactables();
+    UI.hint(near ? near.label : null, near && near.btn);
     if (Input.take('action') && near) { Sfx.play('click'); Device.buzz(12); const n = near; runEvent(() => n.run()); }
     if (Input.take('phone')) { Sfx.play('click'); UI.openPhone('quests'); }
     if (Input.take('map')) { Sfx.play('click'); UI.openPhone('map'); }
@@ -197,7 +218,7 @@ window.__back = () => {
     hot.snapshot(() => {
       if (!G.s) return {};
       const p = Ents.player;
-      G.s.pos = { x: p.x / TILE, y: p.y / TILE, dir: p.dir };
+      G.s.pos = Inside.outsidePos() || { x: p.x / TILE, y: p.y / TILE, dir: p.dir };
       return { save: JSON.parse(JSON.stringify(G.s)) };
     });
   }

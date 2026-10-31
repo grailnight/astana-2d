@@ -29,23 +29,25 @@ const MG = (() => {
   ];
   const CUSTOMERS = ['Студентка', 'Чиновник в пальто', 'Курьер', 'Бабушка', 'Айтишник', 'Турист', 'Мама с коляской', 'Таксист'];
 
-  function barista() {
+  // cfg: { title, ing, drinks, customers, verb } — та же механика для официанта на тое
+  function barista(cfg = {}) {
+    const ING_ = cfg.ing || ING, DRINKS_ = cfg.drinks || DRINKS, CUST_ = cfg.customers || CUSTOMERS;
     return new Promise((resolve) => {
       const TOTAL = 50;
       const el = sheet('barista', `
-        <div class="mg-head"><div class="mg-title">Смена бариста</div><div class="mg-timer"><i></i></div><div class="mg-score">Заказов: <b>0</b></div></div>
+        <div class="mg-head"><div class="mg-title">${cfg.title || 'Смена бариста'}</div><div class="mg-timer"><i></i></div><div class="mg-score">Заказов: <b>0</b></div></div>
         <div class="bar-main">
           <div class="order"><div class="who"></div><div class="drink"></div><div class="cup"><div class="layers"></div></div></div>
-          <div class="recipes">${DRINKS.map((d) => `<div class="rcp"><b>${d.n}</b><span>${d.r.map((i) => ING[i].n).join(' → ')}</span></div>`).join('')}</div>
+          <div class="recipes">${DRINKS_.map((d) => `<div class="rcp"><b>${d.n}</b><span>${d.r.map((i) => ING_[i].n).join(' → ')}</span></div>`).join('')}</div>
         </div>
-        <div class="ings">${Object.entries(ING).map(([k, v]) => `<button class="ing" data-k="${k}"><i style="background:${v.c}"></i>${v.n}</button>`).join('')}</div>
+        <div class="ings">${Object.entries(ING_).map(([k, v]) => `<button class="ing" data-k="${k}"><i style="background:${v.c}"></i>${v.n}</button>`).join('')}</div>
       `);
       const $ = (q) => el.querySelector(q);
       let order, progress = 0, served = 0, tips = 0, orderStart = 0, done = false;
       const t0 = performance.now();
       function next() {
-        order = pick(DRINKS); progress = 0; orderStart = performance.now();
-        $('.who').textContent = pick(CUSTOMERS) + ' заказывает:';
+        order = pick(DRINKS_); progress = 0; orderStart = performance.now();
+        $('.who').textContent = pick(CUST_) + (cfg.verb || ' заказывает:');
         $('.drink').textContent = order.n;
         $('.layers').innerHTML = '';
       }
@@ -53,7 +55,7 @@ const MG = (() => {
         if (done) return;
         if (order.r[progress] === k) {
           const L = document.createElement('i');
-          L.style.background = ING[k].c;
+          L.style.background = ING_[k].c;
           $('.layers').appendChild(L);
           progress++;
           Sfx.play('tick');
@@ -73,7 +75,7 @@ const MG = (() => {
         }
       }
       el.querySelectorAll('.ing').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
-      const keys = Object.keys(ING);
+      const keys = Object.keys(ING_);
       const onKey = (e) => { const n = parseInt(e.key, 10); if (n >= 1 && n <= keys.length) press(keys[n - 1]); };
       window.addEventListener('keydown', onKey);
       next();

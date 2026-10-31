@@ -8,32 +8,63 @@ const Ents = (() => {
   const BOTTOMS = ['#2a3550', '#3b3b3b', '#5a4a3a', '#1f2a44', '#4a5568'];
   const CAR_COLORS = ['#e9e9e9', '#e9e9e9', '#2b2b2b', '#9aa4ad', '#8c1c1c', '#1f4e8c', '#f0c419', '#3d5a40', '#d9d4c7'];
 
+  const LIPS = ['#c24d68', '#b03a48', '#d46a7e', '#a8505f', '#c75b5b'];
+  const SKIRTS = ['#2b2b2b', '#5b3a6e', '#7a2e2e', '#2a3550', '#6b4a32', '#3f5f3f', '#c9b79c'];
+  const FEM_TOPS = ['#e84393', '#f2a7c3', '#c0392b', '#8e44ad', '#f4f0e6', '#16a085', '#e67e22', '#5b9bd5', '#f1c40f'];
   function randomLook(winter) {
     const female = chance(0.5);
-    return {
+    const L = {
       female, skin: pick(SKINS), hair: pick(HAIRS),
-      hairStyle: female ? pick(['long', 'bob', 'bun', 'pony']) : pick(['short', 'buzz', 'short']),
-      outfit: pick(['casual', 'hoodie', 'sport', 'suit', 'casual']),
-      top: pick(TOPS), bottom: pick(BOTTOMS), shoes: pick(['#2a2420', '#3b3b3b', '#e8e8e8', '#5a3d28']),
+      shoes: pick(['#2a2420', '#3b3b3b', '#e8e8e8', '#5a3d28']),
       outer: winter && chance(0.85) ? 'puffer' : null, outerColor: pick(['#2d4f7c', '#1b1b1b', '#7a2e2e', '#3f5f3f', '#c9b79c', '#5b4b7a']),
-      hat: winter ? pick(['ushanka', 'beanie', 'beanie', null]) : (chance(0.1) ? 'cap' : null),
-      hatColor: pick(['#6b4a32', '#2b2b2b', '#c0392b', '#3a5a8a', '#8a8a8a']),
+      hat: null, hatColor: pick(['#6b4a32', '#2b2b2b', '#c0392b', '#3a5a8a', '#8a8a8a']),
       glasses: chance(0.12),
     };
+    if (female) {
+      // женщины: длинные волосы/хвост/пучок, юбки и платья, серьги, помада
+      L.hairStyle = pick(['long', 'long', 'pony', 'bun', 'bob']);
+      L.outfit = pick(['casual', 'casual', 'suit', 'hoodie', 'sport']);
+      L.top = pick(FEM_TOPS);
+      L.bottom = L.outfit === 'casual' || L.outfit === 'suit' ? pick(SKIRTS) : pick(BOTTOMS);
+      L.earrings = chance(0.55);
+      L.lips = pick(LIPS);
+      if (winter && (L.outfit === 'casual' || L.outfit === 'suit')) L.tights = pick(['#2b2b2b', '#3b2f2f', '#4a3b4a']);
+      if (L.outer) L.outerColor = pick(['#f4f0e6', '#c9b79c', '#7a2e2e', '#5b4b7a', '#1b1b1b', '#d98ca8']);
+      if (winter) L.hat = pick(['beanie', 'beanie', null, null]);
+      if (chance(0.06)) { L.hat = 'kerchief'; L.hatColor = pick(['#c0392b', '#2a6f97', '#5b3a6e', '#f4f0f0']); L.hair = '#8a8a8a'; }
+      if (L.hat === 'beanie') L.hatColor = pick(['#f4f0e6', '#d98ca8', '#c0392b', '#8e44ad', '#2b2b2b']);
+    } else {
+      // мужчины: короткие стрижки, бороды/усы, брюки
+      L.hairStyle = pick(['short', 'short', 'buzz', 'side']);
+      L.outfit = pick(['casual', 'hoodie', 'sport', 'suit', 'casual']);
+      L.top = pick(TOPS); L.bottom = pick(BOTTOMS);
+      if (L.outfit === 'suit') { L.top = pick(['#2b2f3a', '#3b4a5a', '#1f2a44', '#4a4a4a']); L.tie = pick(['#a83232', '#2f6fd1', '#f2c14e', '#3d5a40']); }
+      const r = Math.random();
+      if (r < 0.16) L.beard = true; else if (r < 0.28) L.mustache = true;
+      if (winter) L.hat = pick(['ushanka', 'beanie', 'beanie', null]);
+      else if (chance(0.12)) L.hat = 'cap';
+      if (L.hair === '#8a8a8a' && chance(0.3)) L.hat = 'kalpak';
+    }
+    return L;
   }
 
   const player = { x: 0, y: 0, dir: 0, moving: false, anim: 0, sit: false };
   const peds = [];
   const cars = [];
 
+  // в помещении проходимость задаёт комната, а не карта города
+  let solidAt = null, leaveHook = null;
+  function setSolid(fn, onLeave) { solidAt = fn; leaveHook = onLeave || null; }
   function boxBlocked(x, y, hw = 5, hh = 6) {
     const x0 = Math.floor((x - hw) / TILE), x1 = Math.floor((x + hw) / TILE);
     const y0 = Math.floor((y - hh) / TILE), y1 = Math.floor((y - 1) / TILE);
-    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (World.isSolidTile(tx, ty)) return true;
+    const solid = solidAt || World.isSolidTile;
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (solid(tx, ty)) return true;
     return false;
   }
 
   function carBlocks(x, y) {
+    if (solidAt) return false;
     for (const c of cars) {
       const hw = c.d[0] ? 12 : 7, hh = c.d[0] ? 6 : 12;
       if (Math.abs(c.x - x) < hw + 4 && Math.abs(c.y + 2 - (y - 3)) < hh + 3) return true;
@@ -64,6 +95,8 @@ const Ents = (() => {
   }
 
   function placePlayer(tx, ty) {
+    // перенос в город (такси, автобус, обморок) из помещения — выходим из комнаты
+    if (solidAt) { const h = leaveHook; solidAt = null; leaveHook = null; if (h) h(); }
     player.x = tx * TILE + 8; player.y = ty * TILE + 12;
     // если клетка занята, ищем свободную рядом
     if (boxBlocked(player.x, player.y)) {
@@ -81,6 +114,13 @@ const Ents = (() => {
     for (let i = 0; i < n; i++) {
       const [tx, ty] = pick(World.pedTiles);
       peds.push({ x: tx * TILE + 8, y: ty * TILE + 12, tx, ty, dir: randi(0, 3), look: randomLook(winter), speed: rand(20, 32), tgt: null, anim: 0, pause: rand(0, 2), lineIdx: randi(0, 999) });
+    }
+    // патрульные: ходят по центру, следят за переходами
+    for (let i = 0; i < 4; i++) {
+      const [tx, ty] = pick(World.pedTiles.filter(([x, y]) => x > 10 && x < 110 && y > 10 && y < 118));
+      const look = City.policeLook();
+      if (winter) { look.outer = 'puffer'; look.outerColor = '#1f2a44'; }
+      peds.push({ x: tx * TILE + 8, y: ty * TILE + 12, tx, ty, dir: randi(0, 3), look, police: true, speed: rand(16, 22), tgt: null, anim: 0, pause: rand(0, 2), lineIdx: randi(0, 999) });
     }
   }
 
@@ -186,5 +226,5 @@ const Ents = (() => {
     }
   }
 
-  return { player, peds, cars, randomLook, movePlayer, placePlayer, spawnPeds, updatePeds, spawnCars, updateCars, boxBlocked };
+  return { player, peds, cars, randomLook, movePlayer, placePlayer, spawnPeds, updatePeds, spawnCars, updateCars, boxBlocked, setSolid };
 })();

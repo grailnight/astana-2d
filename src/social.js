@@ -57,14 +57,7 @@ const Social = (() => {
     return st.known[id];
   }
 
-  function sprite(L, dir) {
-    const sheet = Art.charSheet(L);
-    const cv = makeCanvas(16 * 6, Art.FH * 6);
-    const g = cv.getContext('2d');
-    g.imageSmoothingEnabled = false;
-    g.drawImage(sheet, 0, dir * Art.FH, 16, Art.FH, 0, 0, 16 * 6, Art.FH * 6);
-    return cv.toDataURL();
-  }
+  const sprite = (L, dir) => Art.sprite(L, dir, 3).toDataURL();
 
   function hearts(id) {
     const r = s().rel[id] || 0;

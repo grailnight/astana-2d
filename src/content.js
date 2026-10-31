@@ -142,7 +142,7 @@ const Content = (() => {
 
   function buyFood(name, price, food, mood = 0, energy = 0, minutes = 20) {
     return {
-      label: name, price, time: minutes,
+      label: name, price, time: minutes, icon: /Кофе|Капучино|Шай|Чай/.test(name) ? 'cup' : 'bowl',
       sub: [food ? `сытость +${food}` : '', energy ? `энергия +${energy}` : '', mood ? `настроение +${mood}` : ''].filter(Boolean).join(' · '),
       run: async () => {
         if (!G.pay(price)) return;
@@ -156,8 +156,9 @@ const Content = (() => {
 
   function buyItem(id, price) {
     const it = ITEMS[id];
+    const ICON = { flowers: 'flower', ring: 'ring', laptop: 'laptop', scooter: 'scooter', sketchbook: 'gift', film: 'camera', book: 'book', chocolate: 'gift', groceries: 'bag' };
     return {
-      label: it.name, price, sub: it.desc + (G.has(id) ? ` · в сумке: ${s().inv[id]}` : ''),
+      label: it.name, price, icon: ICON[id] || (it.food ? 'bowl' : 'bag'), sub: it.desc + (G.has(id) ? ` · в сумке: ${s().inv[id]}` : ''),
       disabled: it.key && G.has(id) ? 'уже есть' : null,
       run: async () => {
         if (!G.pay(price)) return;
@@ -175,7 +176,7 @@ const Content = (() => {
     if (c.warm) tags.push(`тепло +${c.warm}`);
     if (c.formal) tags.push('нарядное');
     return {
-      label: c.name, price: owned ? null : price, sub: tags.join(' · ') || 'повседневное',
+      label: c.name, price: owned ? null : price, icon: 'shirt', sub: tags.join(' · ') || 'повседневное',
       disabled: owned ? 'уже есть' : null,
       run: async () => {
         if (!G.pay(price)) return;
@@ -208,50 +209,48 @@ const Content = (() => {
       st.flags.metGulnar = true; st.met.gulnar = true;
       return;
     }
-    const opts = ['Как ваши дела, апай?'];
     const canPay = st.rent.due - st.day < 7 && st.homeId === 'home';
     const fine = st.rent.locked ? 5000 : 0;
-    if (canPay) opts.push({ text: `Заплатить аренду: ${fmtMoney(st.rent.amount + fine)}${fine ? ' (с пеней)' : ''}`, note: `срок: до конца дня ${st.rent.due}` });
-    const kazStep = Quests.isStep('kazakh', 2);
-    if (kazStep) opts.push('Поговорить по-казахски');
-    opts.push('Ничего, до свидания');
-    const c = await ask('gulnar', st.rent.locked ? 'Балам, долг по аренде! Пока не заплатишь — комнату не открою. Уж извини.' : pick([
-      `Ну что, как тебе столица? ${gx('Не замёрз', 'Не замёрзла')} ещё?`,
-      gx('Ты кушал сегодня? Худой какой-то стал.', 'Ты кушала сегодня? Худая какая-то стала.'),
-      'Мой сын тоже в Астану приехал из аула, теперь у него своя фирма. И ты пробьёшься!',
-    ]), opts);
-    const pickd = opts[c];
-    const label = typeof pickd === 'string' ? pickd : pickd.text;
-    if (label.startsWith('Как ваши')) {
-      if (G.once('talk_gulnar')) G.addRel('gulnar', 3);
-      await say('gulnar', pick([
-        'Слава богу, потихоньку. Давление скачет, когда погода меняется. А у нас она меняется каждый час!',
-        'Внук в садик пошёл, уже поёт «Менің Қазақстаным». Я плачу каждый раз.',
-        'Соседка с пятого опять затопила. Ничего, в Астане главное — тёплые батареи и тёплые люди.',
+    const extra = [];
+    if (canPay) extra.push({ label: `Заплатить аренду ${fmtMoney(st.rent.amount + fine)}`, icon: 'coin', run: payRent });
+    if (Quests.isStep('kazakh', 2)) extra.push({ label: 'Поговорить по-казахски', icon: 'talk', run: kazakhWithGulnar, end: true });
+    await Social.open('gulnar', {
+      loc: 'home', extra,
+      greet: st.rent.locked ? 'Балам, долг по аренде! Пока не заплатишь — комнату не открою. Уж извини.' : pick([
+        `Ну что, как тебе столица? ${gx('Не замёрз', 'Не замёрзла')} ещё?`,
+        gx('Ты кушал сегодня? Худой какой-то стал.', 'Ты кушала сегодня? Худая какая-то стала.'),
+        'Мой сын тоже в Астану приехал из аула, теперь у него своя фирма. И ты пробьёшься!',
         'Сегодня баурсаки жарила. Заходи вечером, угощу.',
-      ]));
-    } else if (label.startsWith('Заплатить')) {
-      if (!G.pay(st.rent.amount + fine)) return;
-      st.rent.due += 7; st.rent.locked = false; st.flags.rentPaid = (st.flags.rentPaid || 0) + 1;
-      Sfx.play('coin');
-      await say('gulnar', `Рақмет, балам! Следующая оплата — до конца дня ${st.rent.due}, ${WEEKDAYS_FULL[weekday(st.rent.due)]}.`);
-    } else if (label.startsWith('Поговорить')) {
-      const q = await ask('gulnar', 'Қалың қалай, балам? Жұмыс қалай?', [
-        'Жақсы, рақмет! Жұмыс та жақсы. Өзіңіз қалайсыз?',
-        'Мен… э… жақсы?',
-        'Апай, я не понял ничего.',
-      ]);
-      if (q === 0) {
-        await say('gulnar', 'Ой, балам! Енді сен нағыз астаналықсың! Теперь ты настоящий житель столицы!');
-        await say('gulnar', 'Держи баурсаки, свежие. И аренду сделаю 18 000 — для своих.');
-        G.give('baursak', 3); st.rent.amount = 18000; st.flags.kazakhGulnar = true; G.addRel('gulnar', 15);
-      } else if (q === 1) {
-        await say('gulnar', 'Жақсы, жақсы! Почти. Ещё чуть-чуть позанимайся у Сауле-апай и приходи.');
-      } else {
-        await say('gulnar', 'Ничего, тіл үйрену — бұл марафон. Язык учить — это марафон, не спринт.');
-      }
-    }
+      ]),
+    });
   };
+
+  async function payRent() {
+    const st = s();
+    const fine = st.rent.locked ? 5000 : 0;
+    if (!G.pay(st.rent.amount + fine)) return;
+    st.rent.due += 7; st.rent.locked = false; st.flags.rentPaid = (st.flags.rentPaid || 0) + 1;
+    Sfx.play('coin');
+    await say('gulnar', `Рақмет, балам! Следующая оплата — до конца дня ${st.rent.due}, ${WEEKDAYS_FULL[weekday(st.rent.due)]}.`);
+  }
+
+  async function kazakhWithGulnar() {
+    const st = s();
+    const q = await ask('gulnar', 'Қалың қалай, балам? Жұмыс қалай?', [
+      'Жақсы, рақмет! Жұмыс та жақсы. Өзіңіз қалайсыз?',
+      'Мен… э… жақсы?',
+      `Апай, я ${gx('не понял', 'не поняла')} ничего.`,
+    ]);
+    if (q === 0) {
+      await say('gulnar', 'Ой, балам! Енді сен нағыз астаналықсың! Теперь ты настоящий житель столицы!');
+      await say('gulnar', 'Держи баурсаки, свежие. И аренду сделаю 18 000 — для своих.');
+      G.give('baursak', 3); st.rent.amount = 18000; st.flags.kazakhGulnar = true; G.addRel('gulnar', 15);
+    } else if (q === 1) {
+      await say('gulnar', 'Жақсы, жақсы! Почти. Ещё чуть-чуть позанимайся у Сауле-апай и приходи.');
+    } else {
+      await say('gulnar', 'Ничего, тіл үйрену — бұл марафон. Язык учить — это марафон, не спринт.');
+    }
+  }
 
   Talk.dauren = async () => {
     const st = s();
@@ -264,19 +263,17 @@ const Content = (() => {
       G.addRel('dauren', 5);
       return;
     }
-    if (Quests.status('toy') === 'active' && !st.flags.toyDone) {
-      await say('dauren', `Ты же помнишь? Той в «Алтын Сарае», ${WEEKDAYS_FULL[weekday(st.flags.toyDay)]}, с шести вечера! Мадина уже всех родственников обзвонила.`);
-      return;
-    }
-    if (G.once('talk_dauren')) G.addRel('dauren', 3);
-    await say('dauren', pick([
-      'Когда буран, курьеры — герои. Ну или сумасшедшие. Я пока не решил, кто я.',
-      'Мама говорит: «Женись!». Я говорю: «Сначала кредит закрою». Она говорит: «Это не ответ».',
-      gx('Видел', 'Видела') + ', как ночью светится Байтерек? Я однажды так засмотрелся, что заказ не туда отвёз.',
-      'Если устанешь — шаурма №1 спасает. Проверено.',
-      'Знаешь, почему в Астане все быстро ходят? Потому что −30. Всё.',
-      st.flags.toyDone ? 'До сих пор вспоминаю твой тост на тое. Мадина тебе привет передаёт!' : 'Мадина — лучшая. Я тебе её скоро покажу. В смысле познакомлю.',
-    ]));
+    const toySoon = Quests.status('toy') === 'active' && !st.flags.toyDone;
+    await Social.open('dauren', {
+      loc: UI.currentLoc(),
+      greet: toySoon ? `Ты же помнишь? Той в «Алтын Сарае», ${WEEKDAYS_FULL[weekday(st.flags.toyDay)]}, с шести вечера! Мадина уже всех родственников обзвонила.` : pick([
+        'Когда буран, курьеры — герои. Ну или сумасшедшие. Я пока не решил, кто я.',
+        'Мама говорит: «Женись!». Я говорю: «Сначала кредит закрою». Она говорит: «Это не ответ».',
+        'Если устанешь — шаурма №1 спасает. Проверено.',
+        'Знаешь, почему в Астане все быстро ходят? Потому что −30. Всё.',
+        st.flags.toyDone ? 'До сих пор вспоминаю твой тост на тое. Мадина тебе привет передаёт!' : 'Мадина — лучшая. Я тебе её скоро покажу. В смысле познакомлю.',
+      ]),
+    });
   };
 
   Talk.aigerim = async () => {
@@ -296,55 +293,48 @@ const Content = (() => {
       st.flags.heardJob = true;
       return;
     }
-    await Romance.menu('aigerim', aigerimChat);
-  };
-
-  async function aigerimChat() {
-    const st = s();
     const r = st.rel.aigerim;
-    await say('aigerim', r < 30 ? pick([
-      'Самый популярный заказ зимой — чай с молоком по-казахски. Холодно же!',
-      'Утром здесь очередь из студентов и чиновников. Все невыспавшиеся одинаково.',
-      'Ты уже был на набережной вечером? Очень красиво, когда всё светится.',
-    ]) : r < 60 ? pick([
-      'Я рисую серию плакатов про Астану: Байтерек, Хан Шатыр, пирамиду. Хочешь, покажу когда-нибудь?',
-      'Мне нравится, что город молодой. Ему столько же лет, сколько многим из нас.',
-      `${P()}, ты сегодня ${gx('какой-то задумчивый', 'какая-то задумчивая')}. Всё хорошо?`,
-    ]) : pick([
-      'Я рада, что ты заходишь. Правда.',
-      'Если захочешь погулять вечером — звони. Номер у тебя есть.',
-      'Знаешь, раньше я думала, что Астана — холодный город. А теперь — нет.',
-    ]));
-  }
+    await Social.open('aigerim', {
+      loc: 'coffee',
+      greet: r < 30 ? pick([
+        'Самый популярный заказ зимой — чай с молоком по-казахски. Холодно же!',
+        'Утром здесь очередь из студентов и чиновников. Все невыспавшиеся одинаково.',
+      ]) : r < 60 ? pick([
+        'Я рисую серию плакатов про Астану: Байтерек, Хан Шатыр, пирамиду. Хочешь, покажу когда-нибудь?',
+        `${P()}, ты сегодня ${gx('какой-то задумчивый', 'какая-то задумчивая')}. Всё хорошо?`,
+      ]) : pick([
+        'Я рада, что ты заходишь. Правда.',
+        'Знаешь, раньше я думала, что Астана — холодный город. А теперь — нет.',
+      ]),
+    });
+  };
 
   const CHATS = {
     timur: [['Сегодня поймал отличный кадр: дети катаются с горки у Хан Шатыра.', 'Астана — город для широкоугольника. Всё большое.'], ['Хочешь, покажу свои любимые точки для съёмки? Пирамида на рассвете — магия.', 'Я снимаю людей больше, чем здания. Здания не улыбаются.'], ['С тобой интересно гулять — ты смотришь на город как в первый раз.', 'Я тут подумал… ты хорошо получаешься на фото. Особенно когда смеёшься.']],
     zhanel: [['Мечтаю стать кардиологом. Иронично, да? Сердце — моя специальность.', 'Сегодня было восемь вызовов. Я жива, просто очень хочу спать.'], ['Когда закончу интернатуру, хочу поехать в Алматы, в горы. Хоть на неделю.', 'Пей воду. Это не флирт, это медицинский совет. Ну, почти.'], ['С тобой я забываю про смены. Это опасно для врача.', 'Знаешь, у тебя пульс ускорился. Я профессионал, я замечаю.']],
-    alikhan: [['Видишь, как бульвар ведёт взгляд от Хан Шатыра к Байтереку и Акорде? Это ось города.', 'Мой любимый дом — старый вокзал. В нём есть душа.'], ['Хочу когда-нибудь спроектировать что-то для этого города. Может, мост.', 'Ты замечал, что зимой город выглядит как макет из белого картона?'], ['Ты первый человек, которому я рассказываю про свои проекты без слайдов.', 'Если бы я строил дом, я бы оставил в нём место для тебя. Это метафора. Наверное.']],
+    alikhan: [['Видишь, как бульвар ведёт взгляд от Хан Шатыра к Байтереку и Акорде? Это ось города.', 'Мой любимый дом — старый вокзал. В нём есть душа.'], ['Хочу когда-нибудь спроектировать что-то для этого города. Может, мост.', 'Зимой город выглядит как макет из белого картона, правда?'], ['Ты первый человек, которому я рассказываю про свои проекты без слайдов.', 'Если бы я строил дом, я бы оставил в нём место для тебя. Это метафора. Наверное.']],
   };
-  function datersChat(id) {
+  function daterTalk(id, loc) {
     return async () => {
+      if (!s().met[id]) { await Romance.intro(id); return; }
       const r = s().rel[id] || 0;
-      const tier = r >= 60 ? 2 : r >= 30 ? 1 : 0;
-      await say(id, pick(CHATS[id][tier]));
+      await Social.open(id, { loc, greet: pick(CHATS[id][r >= 60 ? 2 : r >= 30 ? 1 : 0]) });
     };
   }
-  Talk.timur = () => Romance.menu('timur', datersChat('timur'));
-  Talk.zhanel = () => Romance.menu('zhanel', datersChat('zhanel'));
-  Talk.alikhan = () => Romance.menu('alikhan', datersChat('alikhan'));
+  Talk.timur = daterTalk('timur', 'wheel');
+  Talk.zhanel = daterTalk('zhanel', 'hospital');
+  Talk.alikhan = daterTalk('alikhan', 'expo');
 
   Talk.arman = async () => {
     if (!s().job.hired) {
       await say('arman', 'Привет! Я Арман, тимлид. Если ты на собеседование — мы проводим их по будням с 9 до 17.');
       return;
     }
-    if (G.once('talk_arman')) G.addRel('arman', 3);
-    await say('arman', pick([
+    await Social.open('arman', { loc: 'office', greet: pick([
       'Прод упал? Нет? Ну и отлично. Хорошего дня!',
       'У нас в команде правило: пятничный деплой — только с баурсаками для всех.',
       'Растёшь! Продолжай в том же духе — и повышение не за горами.',
-      'Кофе-машина опять сломалась. Сходи в «Дала Кофе», если что.',
-    ]));
+    ]) });
   };
 
   Talk.saule = async () => {
@@ -356,24 +346,21 @@ const Content = (() => {
       await say('saule', 'Тіл — ұлттың жаны. Язык — душа народа. Начнём?');
       return;
     }
-    if (G.once('talk_saule')) G.addRel('saule', 3);
-    await say('saule', pick([
+    await Social.open('saule', { loc: 'lang', greet: pick([
       'Совет: говорите «Рақмет» вместо «спасибо» — люди сразу улыбаются.',
       'В казахском девять особых букв: ә, ғ, қ, ң, ө, ұ, ү, һ, і. Не бойтесь их!',
       'Апа, апай, аға — так уважительно обращаются к старшим. Очень важно.',
       '«Ас болсын!» — желают перед едой. Как «приятного аппетита».',
-    ]));
+    ]) });
   };
 
   Talk.erzhan = async () => {
-    if (G.once('talk_erzhan')) G.addRel('erzhan', 3);
-    await say('erzhan', pick([
+    await Social.open('erzhan', { loc: 'market', greet: pick([
       'Пуховик бери, зима близко! У нас не холодно, у нас — свежо. Минус сорок — это свежо.',
       'Казы — сам делал! Ну, почти сам. Брат делал. Но я рядом стоял.',
-      'Курт пробовал? Солёный, твёрдый — в дорогу самое то.',
       'Калпак — это не просто шапка, это стиль! Летом не жарко, на тое — красиво.',
       'Торговаться будешь? Давай. Цена та же, но разговор приятный.',
-    ]));
+    ]) });
   };
 
   /* ---------- побочные персонажи на улице ---------- */
@@ -535,10 +522,7 @@ const Content = (() => {
     { id: 'mama', when: () => true },
     { id: 'dauren', when: () => true },
     { id: 'gulnar', when: () => s().met.gulnar },
-    { id: 'aigerim', when: () => s().met.aigerim && s().rel.aigerim >= 25 },
-    { id: 'timur', when: () => s().met.timur && s().rel.timur >= 25 },
-    { id: 'zhanel', when: () => s().met.zhanel && s().rel.zhanel >= 25 },
-    { id: 'alikhan', when: () => s().met.alikhan && s().rel.alikhan >= 25 },
+    ...['aigerim', 'timur', 'zhanel', 'alikhan'].map((id) => ({ id, when: () => s().met[id] && (s().flags['phone_' + id] || s().rel[id] >= 40) })),
   ];
 
   async function call(id) {
@@ -884,13 +868,14 @@ const Content = (() => {
           run: async () => {
             if (!G.pay(1500)) return;
             await UI.fade('Тренировка…', async () => G.advance(90, { work: 6 }));
-            G.addXp('fit', 0.35); G.add('mood', 8);
+            G.addXp('fit', 0.35); G.add('mood', 8); G.add('hyg', -20);
             s().maxEnergy = 100 + lvl('fit') * 4;
           },
         },
+        { label: 'Душ', time: 15, icon: 'shower', sub: 'гигиена 100 · бесплатно для гостей', run: async () => { await UI.fade('Душ…', async () => G.advance(15)); s().hyg = 100; } },
         {
           label: 'Сауна', price: 2000, time: 60, sub: 'настроение +15 · энергия +10',
-          run: async () => { if (!G.pay(2000)) return; await UI.fade('Сауна…', async () => G.advance(60)); G.add('mood', 15); G.add('energy', 10); },
+          run: async () => { if (!G.pay(2000)) return; await UI.fade('Сауна…', async () => G.advance(60)); G.add('mood', 15); G.add('energy', 10); G.add('hyg', 40); },
         },
       ],
     },
@@ -1071,6 +1056,7 @@ const Content = (() => {
       actions: () => [
         buyFood('Беляш', 400, 15, 1, 0, 10),
         buyFood('Чай из термоса у бабушки', 200, 4, 3, 4, 5),
+        { label: 'Умыться в туалете вокзала', price: 100, time: 10, icon: 'drop', sub: 'гигиена +25', run: async () => { if (!G.pay(100)) return; G.advance(10); G.add('hyg', 25); } },
         {
           label: 'Поспать на скамейке', time: 0, sub: 'если некуда идти · энергия до 60', disabled: G.hour() < 21 && G.hour() >= 6 ? 'только ночью' : null,
           run: async () => { await sleepUntilMorning(0.6); G.add('mood', -15); },
@@ -1120,6 +1106,7 @@ const Content = (() => {
       label: 'Спать до утра', sub: 'до 7:00 · сохранение', disabled: h >= 7 && h < 19 && st.energy > 35 ? 'ещё рано (можно после 19:00)' : null,
       run: async () => { UI.closeAll(); await sleepUntilMorning(1); },
     });
+    out.push({ label: 'Принять душ', time: 20, icon: 'shower', sub: 'гигиена 100 · настроение +3', run: async () => { await UI.fade('Горячий душ…', async () => G.advance(20)); st.hyg = 100; G.add('mood', 3); } });
     out.push({ label: 'Вздремнуть 2 часа', time: 120, sub: 'энергия +', run: async () => { await UI.fade('Короткий сон…', async () => G.advance(120, { asleep: true })); } });
     out.push({
       label: 'Приготовить ужин', time: 40, sub: 'нужен набор продуктов · сытость +50', disabled: !G.has('groceries') ? 'нет продуктов' : null,

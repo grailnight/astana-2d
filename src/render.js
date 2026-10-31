@@ -105,6 +105,7 @@ const Render = (() => {
     const season = G.season();
     trackFootprints(season);
     drawFootprints();
+    drawCards();
     const vx0 = camX - 40, vx1 = camX + vw + 40, vy0 = camY - 40, vy1 = camY + vh + 260;
     const list = [];
     for (const b of World.buildings) {
@@ -239,6 +240,23 @@ const Render = (() => {
       if (age > 30) continue;
       ctx.fillStyle = `rgba(120,140,165,${0.45 * (1 - age / 30)})`;
       ctx.fillRect(sx(f.x - 1), sy(f.y - 1), 2 * S, 2 * S);
+    }
+  }
+
+  // Спрятанные открытки — блестящие конверты на земле
+  function drawCards() {
+    for (const c of Life.cardsLeft()) {
+      const x = c.tx * TILE + 8, y = c.ty * TILE + 9 + Math.sin(time * 3 + c.tx) * 1.5;
+      if (x < camX - 20 || x > camX + VW / S + 20 || y < camY - 20 || y > camY + VH / S + 20) continue;
+      ctx.fillStyle = 'rgba(10,15,30,0.25)'; ctx.fillRect(sx(x - 4), sy(c.ty * TILE + 13), 8 * S, 2 * S);
+      ctx.fillStyle = '#f4f7f8'; ctx.fillRect(sx(x - 5), sy(y - 4), 10 * S, 7 * S);
+      ctx.fillStyle = '#e5533d'; ctx.fillRect(sx(x - 5), sy(y - 4), 10 * S, S);
+      ctx.fillStyle = '#2ec4e6'; ctx.fillRect(sx(x + 1), sy(y - 2), 3 * S, 3 * S);
+      ctx.fillStyle = '#9aa7b0'; ctx.fillRect(sx(x - 4), sy(y), 4 * S, S);
+      if ((time * 1.5 + c.tx * 0.37) % 2 < 0.5) {
+        ctx.fillStyle = '#f6c343';
+        ctx.fillRect(sx(x + 5), sy(y - 8), S, 3 * S); ctx.fillRect(sx(x + 4), sy(y - 7), 3 * S, S);
+      }
     }
   }
 
@@ -565,67 +583,37 @@ const Render = (() => {
     ctx.lineWidth = 3 * dpr; ctx.strokeText(txt, lx, ly); ctx.fillStyle = '#f6c343'; ctx.fillText(txt, lx, ly);
   }
 
-  /* ---------- титульный экран ---------- */
+  /* ---------- снимок города для титульного коллажа ---------- */
 
-  const stars = Array.from({ length: 90 }, () => [Math.random(), Math.random() * 0.6, Math.random() * 6]);
-  function skyline(g, W, H, t) {
-    const sky = g.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, '#0b1730'); sky.addColorStop(0.55, '#1d3557'); sky.addColorStop(0.8, '#c8664a'); sky.addColorStop(1, '#f2a65a');
-    g.fillStyle = sky; g.fillRect(0, 0, W, H);
-    for (const [x, y, ph] of stars) { g.fillStyle = `rgba(255,255,255,${0.35 + Math.sin(t * 1.5 + ph) * 0.3})`; g.fillRect(x * W, y * H, 2, 2); }
-    const base = H * 0.86;
-    const u = Math.max(1, Math.round(Math.min(W, H) / 220));
-    g.fillStyle = '#0f1d2e';
-    // панельки
-    for (let i = 0; i < 22; i++) {
-      const bw = (18 + hash2(i, 1) * 30) * u, bh = (30 + hash2(i, 2) * 60) * u;
-      const x = (i / 22) * W - 10;
-      g.fillStyle = '#132236'; g.fillRect(x, base - bh, bw, bh);
-      g.fillStyle = 'rgba(255,214,130,0.7)';
-      for (let yy = base - bh + 4 * u; yy < base - 4 * u; yy += 7 * u) for (let xx = x + 3 * u; xx < x + bw - 4 * u; xx += 6 * u) if (hash2(xx | 0, yy | 0) < 0.35) g.fillRect(xx, yy, 2 * u, 3 * u);
+  function postcard(cx, cy, w, h, opts = {}) {
+    const cv = makeCanvas(w, h), g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const x0 = Math.round(cx - w / 2), y0 = Math.round(cy - h / 2);
+    g.drawImage(ground(), x0, y0, w, h, 0, 0, w, h);
+    const items = [];
+    for (const b of World.buildings) if (b.sx < x0 + w && b.sx + b.sw > x0 && b.sy < y0 + h && b.base > y0) items.push({ y: b.base, b });
+    for (const d of World.decor) if (d.x > x0 - 30 && d.x < x0 + w + 30 && d.y > y0 && d.y < y0 + h + 140) items.push({ y: d.y, d });
+    items.sort((a, b) => a.y - b.y);
+    for (const it of items) {
+      if (it.b) { g.drawImage(it.b.sprite, it.b.sx - x0, it.b.sy - y0); continue; }
+      const d = it.d, X = d.x - x0, Y = d.y - y0;
+      if (d.kind === 'tree') g.drawImage(Art.tree(d.tk, 'autumn', d.v), X - 13, Y - 34);
+      else if (d.kind === 'lamp') g.drawImage(Art.lamp(), X - 5, Y - 33);
+      else if (d.kind === 'bench') g.drawImage(Art.bench('autumn'), X - 9, Y - 11);
+      else if (d.kind === 'fountain') g.drawImage(Art.fountain('autumn', 0), X - 24, Y - 43);
+      else if (d.kind === 'stele') g.drawImage(Art.stele().cv, X - 10, Y - 118);
+      else if (d.kind === 'yurt') g.drawImage(Art.yurt('autumn'), X - 24, Y - 39);
+      else if (d.kind === 'bus') g.drawImage(Art.busStop(), X - 15, Y - 29);
     }
-    // Хан Шатыр
-    g.fillStyle = '#1a2b40';
-    const kx = W * 0.16;
-    g.beginPath(); g.moveTo(kx - 70 * u, base); g.quadraticCurveTo(kx - 20 * u, base - 40 * u, kx + 8 * u, base - 110 * u); g.quadraticCurveTo(kx + 30 * u, base - 40 * u, kx + 80 * u, base); g.fill();
-    g.fillStyle = 'rgba(255,200,120,0.18)'; g.fill();
-    // Байтерек
-    const bx = W * 0.5;
-    g.fillStyle = '#e9eef0';
-    g.fillRect(bx - 3 * u, base - 150 * u, 6 * u, 150 * u);
-    g.beginPath(); g.moveTo(bx - 8 * u, base); g.lineTo(bx + 8 * u, base); g.lineTo(bx + 3 * u, base - 30 * u); g.lineTo(bx - 3 * u, base - 30 * u); g.fill();
-    g.strokeStyle = '#e9eef0'; g.lineWidth = 2 * u;
-    for (const s2 of [-1, 1]) { g.beginPath(); g.moveTo(bx, base - 150 * u); g.quadraticCurveTo(bx + s2 * 18 * u, base - 160 * u, bx + s2 * 15 * u, base - 185 * u); g.stroke(); }
-    const glow = g.createRadialGradient(bx, base - 172 * u, 2, bx, base - 172 * u, 40 * u);
-    glow.addColorStop(0, 'rgba(255,215,120,0.9)'); glow.addColorStop(1, 'rgba(255,200,90,0)');
-    g.fillStyle = glow; g.fillRect(bx - 50 * u, base - 220 * u, 100 * u, 100 * u);
-    g.fillStyle = '#f6c343'; g.beginPath(); g.arc(bx, base - 172 * u, 13 * u, 0, Math.PI * 2); g.fill();
-    // Акорда
-    const ax = W * 0.72;
-    g.fillStyle = '#1a2b40'; g.fillRect(ax - 40 * u, base - 36 * u, 80 * u, 36 * u);
-    g.fillStyle = '#3f9bd0'; g.beginPath(); g.ellipse(ax, base - 36 * u, 16 * u, 16 * u, 0, Math.PI, 0); g.fill();
-    g.fillStyle = '#f6c343'; g.fillRect(ax - 1 * u, base - 100 * u, 2 * u, 50 * u);
-    // EXPO
-    const ex = W * 0.9;
-    const eg = g.createRadialGradient(ex - 10 * u, base - 60 * u, 4, ex, base - 50 * u, 42 * u);
-    eg.addColorStop(0, '#bff0ff'); eg.addColorStop(1, '#2e6fa8');
-    g.fillStyle = eg; g.beginPath(); g.arc(ex, base - 50 * u, 40 * u, 0, Math.PI * 2); g.fill();
-    // пирамида
-    const px = W * 0.33;
-    g.fillStyle = '#1a2b40'; g.beginPath(); g.moveTo(px - 40 * u, base); g.lineTo(px, base - 60 * u); g.lineTo(px + 40 * u, base); g.fill();
-    g.fillStyle = 'rgba(255,220,140,0.85)'; g.beginPath(); g.moveTo(px - 12 * u, base - 42 * u); g.lineTo(px, base - 60 * u); g.lineTo(px + 12 * u, base - 42 * u); g.fill();
-    // река
-    g.fillStyle = '#0c1626'; g.fillRect(0, base, W, H - base);
-    g.fillStyle = 'rgba(255,200,120,0.25)';
-    for (let i = 0; i < 40; i++) g.fillRect(hash2(i, 5) * W, base + 6 + hash2(i, 6) * (H - base - 10), (10 + hash2(i, 7) * 30) * u, 1 * u);
-    // снег
-    g.fillStyle = 'rgba(255,255,255,0.8)';
-    for (let i = 0; i < 70; i++) {
-      const x = (hash2(i, 11) * W + t * (12 + hash2(i, 12) * 20) * u) % W;
-      const y = (hash2(i, 13) * H + t * (20 + hash2(i, 14) * 30) * u) % H;
-      g.fillRect(x, y, 2 * u, 2 * u);
+    if (opts.night) {
+      g.fillStyle = 'rgba(10,16,44,0.62)'; g.fillRect(0, 0, w, h);
+      for (const it of items) if (it.b) g.drawImage(it.b.lights, it.b.sx - x0, it.b.sy - y0);
+      g.globalCompositeOperation = 'lighter';
+      for (const it of items) if (it.d && it.d.kind === 'lamp') g.drawImage(lampGlow, it.d.x - x0 - 23, it.d.y - y0 - 50, 46, 46);
+      g.globalCompositeOperation = 'source-over';
     }
+    return cv;
   }
 
-  return { init, frame, ground, skyline, resize, now: () => time };
+  return { init, frame, ground, postcard, resize, now: () => time };
 })();

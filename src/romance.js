@@ -29,7 +29,7 @@ const DATE_SPOTS = {
   skating: { name: 'Каток на Есиле', price: 3000, mins: 90, place: 'baiterek', text: 'Лёд хрустит, играет музыка, вы держитесь за руки, чтобы не упасть. Почти не помогает.', winter: true },
 };
 
-const TOPICS = {
+const DATE_TOPICS = {
   art: 'Про дизайн и рисование', photo: 'Про фотографию и город через объектив', travel: 'Про путешествия и мечты',
   city: 'Про архитектуру Астаны', food: 'Про любимую еду', family: 'Про семью и родной город',
 };
@@ -104,40 +104,6 @@ const Romance = (() => {
     UI.toast(`Новое знакомство: ${name(id)} (${DATERS[id].job})`, 'info');
   }
 
-  /* ---------- меню общения ---------- */
-
-  async function menu(id, chat) {
-    const st = s(), l = L();
-    if (!st.met[id] && INTROS[id]) { await intro(id); return; }
-    l.lastSeen[id] = st.day;
-    const r = st.rel[id] || 0;
-    const opts = [{ text: 'Поболтать', key: 'chat' }];
-    const gifts = Object.keys(st.inv).filter((k) => ITEMS[k] && ITEMS[k].gift && st.inv[k] > 0);
-    opts.push(gifts.length ? { text: 'Подарить подарок', key: 'gift' } : { text: 'Подарить подарок', key: 'gift', disabled: true, note: 'в сумке нет подарков: цветы, шоколад, книги — в ТРЦ' });
-    if (r >= 50 || l.partner === id) opts.push(canDateNow() ? { text: 'Пригласить на свидание', key: 'date' } : { text: 'Пригласить на свидание', key: 'date', disabled: true, note: 'вечером после 17:00 или в выходные' });
-    if (r >= 70 && !l.partner && (l.dates[id] || 0) >= 2) opts.push({ text: 'Признаться в чувствах', key: 'confess' });
-    if (l.partner === id && !l.engaged && r >= 90) opts.push(G.has('ring') && st.flags.ownFlat ? { text: 'Сделать предложение', key: 'propose' } : { text: 'Сделать предложение', key: 'propose', disabled: true, note: !st.flags.ownFlat ? 'сначала своя квартира' : 'нужно кольцо из ТРЦ' });
-    opts.push({ text: 'Пока!', key: 'bye' });
-    const c = await ask(id, greeting(id), opts);
-    const k = opts[c].key;
-    if (k === 'chat') { await chat(); if (G.once('talk_' + id)) G.addRel(id, 3 + Math.min(3, G.lv('charm'))); }
-    else if (k === 'gift') await giveGift(id, gifts);
-    else if (k === 'date') await goOnDate(id);
-    else if (k === 'confess') await confess(id);
-    else if (k === 'propose') await propose(id);
-  }
-
-  function greeting(id) {
-    const st = s(), l = L();
-    const P = st.name;
-    if (l.married && l.partner === id) return pick([`${P}, жаным! Как прошёл день?`, 'Дома чай, я заварил' + (fem(id) ? 'а' : '') + '. Рассказывай!']);
-    if (l.partner === id) return pick([`${P}! Я как раз о тебе думал${fem(id) ? 'а' : ''}.`, 'Привет, солнце. Соскучил' + (fem(id) ? 'ась' : 'ся') + '!', 'О, это ты! Сразу день лучше стал.']);
-    const r = st.rel[id] || 0;
-    if (r >= 50) return pick([`Привет, ${P}! Рад${fem(id) ? 'а' : ''} тебя видеть.`, 'О, а я как раз хотел' + (fem(id) ? 'а' : '') + ' тебе написать!']);
-    if (r >= 25) return pick([`Сәлем, ${P}!`, 'Привет! Как дела?']);
-    return pick(['Здравствуйте!', 'Сәлеметсіз бе! Чем могу помочь?']);
-  }
-
   async function giveGift(id, gifts) {
     const opts = gifts.map((g) => ({ text: ITEMS[g].name, note: `в сумке: ${s().inv[g]}` }));
     opts.push('Передумать');
@@ -185,12 +151,12 @@ const Romance = (() => {
     UI.closeAll();
     await say(null, spot.text);
     // разговор
-    const keys = Object.keys(TOPICS);
+    const keys = Object.keys(DATE_TOPICS);
     const liked = DATERS[id].topic;
     const offer = [liked];
     while (offer.length < 3) { const t = pick(keys); if (!offer.includes(t)) offer.push(t); }
     offer.sort(() => Math.random() - 0.5);
-    const t = await ask(null, 'О чём заговорить?', offer.map((k) => TOPICS[k]));
+    const t = await ask(null, 'О чём заговорить?', offer.map((k) => DATE_TOPICS[k]));
     const topicHit = offer[t] === liked;
     await say(id, topicHit ? pick(['О, это моя любимая тема! Слушай…', 'Ты как будто мысли мои читаешь.']) : pick(['Интересно. Хотя я в этом не очень разбираюсь.', 'Ага… А давай про что-нибудь другое?']));
     let score = 3 + Math.min(3, G.lv('charm')) + Math.min(3, styleScore()) + (topicHit ? 4 : 0) + (spotId === DATERS[id].date ? 4 : 0) + (st.mood > 60 ? 1 : st.mood < 30 ? -3 : 0);
@@ -289,9 +255,9 @@ const Romance = (() => {
     if (!l.partner) return;
     const id = l.partner;
     const gap = st.day - (l.lastSeen[id] || st.day);
-    if (gap >= 3 && !l.married) { G.addRel(id, -4); UI.toast(`${name(id)}: «Ты совсем пропал${gx('', 'а')}…»`, 'bad'); }
+    if (gap >= 3 && !l.married) { G.addRel(id, -4); Life.msg(id, `Ты совсем ${gx('пропал', 'пропала')}… Всё хорошо?`); }
     else if (l.married) { G.add('mood', 6); G.add('food', 20); UI.toast(`${name(id)} приготовил${fem(id) ? 'а' : ''} завтрак. Настроение +6`, 'good'); }
-    else UI.toast(`${name(id)}: «Доброе утро! Хорошего дня»`, 'good');
+    else Life.msg(id, pick(['Доброе утро! Хорошего дня.', 'Как спалось? Я уже скучаю.', 'Не забудь позавтракать!']));
   }
 
   function weddingToday() {
@@ -299,5 +265,5 @@ const Romance = (() => {
     return l.engaged && !l.married && s().day === l.weddingDay && G.hour() >= 17.5;
   }
 
-  return { isDater, stage, present, menu, call, goOnDate, onNewDay, ownWedding, weddingToday, love: L };
+  return { isDater, stage, present, intro, call, goOnDate, giveGift, confess, propose, canDateNow, styleScore, onNewDay, ownWedding, weddingToday, love: L };
 })();

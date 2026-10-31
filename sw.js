@@ -1,10 +1,10 @@
 'use strict';
 // Офлайн-кэш для установленной игры: файлы игры из кэша, шрифты — из кэша с фоновым обновлением.
-const CACHE = 'astana-v3';
+const CACHE = 'astana-v4';
 const SHELL = [
   './', 'index.html', 'style.css', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'src/util.js', 'src/art.js', 'src/world.js', 'src/entities.js', 'src/game.js', 'src/content.js', 'src/quests.js',
-  'src/minigames.js', 'src/romance.js', 'src/device.js', 'src/audio.js', 'src/ui.js', 'src/input.js', 'src/render.js', 'src/main.js',
+  'src/minigames.js', 'src/romance.js', 'src/social.js', 'src/life.js', 'src/uikit.js', 'src/device.js', 'src/audio.js', 'src/ui.js', 'src/input.js', 'src/render.js', 'src/main.js',
 ];
 
 self.addEventListener('install', (e) => {

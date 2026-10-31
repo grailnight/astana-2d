@@ -113,6 +113,8 @@ const Main = (() => {
       const d = World.district(Ents.player.x, Ents.player.y);
       if (d !== district) { if (district) UI.banner(d); district = d; }
     }
+    const card = Life.cardNear(Ents.player.x, Ents.player.y - 4);
+    if (card) Life.collect(card);
     near = interactables();
     UI.hint(near ? near.label : null);
     if (Input.take('action') && near) { Sfx.play('click'); Device.buzz(12); const n = near; runEvent(() => n.run()); }

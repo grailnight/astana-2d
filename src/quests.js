@@ -142,6 +142,7 @@ const Quests = (() => {
         UI.toast(`Новое задание: ${q.title}`, 'quest');
         Sfx.play('quest');
         if (q.onStart) q.onStart();
+        Life.questStarted(q.id);
         if (!st.track || status(st.track) !== 'active') st.track = q.id;
       }
       if (r.status !== 'active') continue;

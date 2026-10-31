@@ -20,7 +20,7 @@ const G = {
       sportColor: profile.sportColor,
       day: 1, min: 9 * 60 + 40,
       money: 15000,
-      energy: 85, food: 65, mood: 65, maxEnergy: 100,
+      energy: 85, food: 65, mood: 65, hyg: 80, maxEnergy: 100,
       xp: { kaz: 0, code: 0, charm: 0, fit: 0 },
       rel: { gulnar: 0, dauren: 25, aigerim: 0, arman: 0, saule: 0, erzhan: 0, mama: 60, timur: 0, zhanel: 0, alikhan: 0 },
       met: { mama: true, dauren: true },
@@ -35,7 +35,12 @@ const G = {
       delivery: null,
       weather: { kind: 'clear', until: 1440 + 9 * 60 + 40 + 240 },
       pos: { x: 21, y: 11, dir: 0 },
-      love: { partner: null, dates: {}, engaged: false, married: false, lastSeen: {}, weddingDay: null },
+      love: { partner: null, dates: {}, engaged: false, married: false, lastSeen: {}, weddingDay: null, broken: 0 },
+      known: {},          // что выяснил про вкусы персонажей
+      msgs: [],           // сообщения в телефоне
+      cards: [],          // найденные открытки
+      medals: [],         // полученные медали
+      talks3: 0,          // разговоров на три звезды
       homeId: 'home',
       ended: false,
     };
@@ -90,7 +95,7 @@ const G = {
     if (k === 'rain' && this.temp() < 0) k = 'snow';
     const prev = s.weather.kind;
     s.weather = { kind: k, until: this.now() + randi(180, 360) };
-    if (k === 'buran' && prev !== 'buran') UI.toast('Буран! На улице сильный ветер и мороз — лучше переждать в тепле.', 'bad');
+    if (k === 'buran' && prev !== 'buran') { UI.toast('Буран! На улице сильный ветер и мороз — лучше переждать в тепле.', 'bad'); Life.weatherAlert(k); }
   },
 
   warmth() {
@@ -118,7 +123,9 @@ const G = {
       if (opts.asleep) {
         s.energy += (s.food > 15 ? 13 : 7) * k;
         s.food -= 2.2 * k;
+        s.hyg -= 1 * k;
       } else {
+        s.hyg -= (2.6 + (opts.work || 0) * 0.6 + (opts.walking ? 0.6 : 0)) * k;
         s.energy -= (3 + (opts.walking ? 1.5 : 0) + (opts.work || 0)) * k;
         s.food -= 4 * k;
         if (opts.outdoor) {
@@ -132,11 +139,13 @@ const G = {
       s.mood += Math.sign(55 - s.mood) * Math.min(Math.abs(55 - s.mood), 1.5 * k);
       s.energy = clamp(s.energy, 0, s.maxEnergy);
       s.food = clamp(s.food, 0, 100);
+      s.hyg = clamp(s.hyg, 0, 100);
       s.mood = clamp(s.mood, 0, 100);
       s.min += step;
       if (s.min >= 1440) { s.min -= 1440; s.day++; this.onNewDay(); }
       if (this.now() >= s.weather.until) this.rollWeather();
     }
+    Life.needWarnings();
     if (s.energy <= 0 && !opts.asleep && !s.flags.fainting) {
       s.flags.fainting = true;
       this.events.push(() => Content.faint());
@@ -157,6 +166,7 @@ const G = {
     if (over >= 3 && !s.rent.locked && s.homeId === 'home') { s.rent.locked = true; UI.toast('Гульнар-апай закрыла комнату до оплаты долга.', 'bad'); }
     if (s.delivery && s.delivery.stage === 'drop' && this.now() - s.delivery.deadline > 600) { s.delivery = null; UI.toast(`Заказ отменён: ты не ${gx('успел', 'успела')} его доставить.`, 'bad'); }
     Romance.onNewDay();
+    Life.onNewDay();
     this.events.push(() => Quests.onNewDay());
   },
 

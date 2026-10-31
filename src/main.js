@@ -209,6 +209,7 @@ const Main = (() => {
 
 window.__back = () => {
   if (UI.blocking()) return UI.back();
+  if (Inside.active()) { Inside.leave(); return true; } // «Назад» в комнате — выйти на улицу
   return false;
 };
 

@@ -194,6 +194,43 @@ img, canvas { image-rendering: pixelated; }
 .t-badges .time { color: var(--muted); }
 .loc-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 10px 10px; flex: none; }
 .empty { color: var(--muted); margin: 6px 0; }
+/* итоги дня */
+.recap { width: min(560px, 100%); max-height: 92%; display: flex; flex-direction: column; }
+.rc-body { overflow-y: auto; padding: 4px 14px 6px; overscroll-behavior: contain; }
+.rc-body h3, .ph-body .rc-tasks + h3 { font-family: var(--font-display); font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); margin: 12px 0 6px; }
+.rc-money { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+.rc-money div { background: rgba(8, 19, 32, 0.6); padding: 8px 6px; text-align: center; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.3); }
+.rc-money b { display: block; font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
+.rc-money small { color: var(--muted); font-size: 11px; }
+.up { color: #7ee08a; } .down { color: #ff9b8a; }
+.rc-tasks, .rc-rel, .rc-next { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rc-tasks li, .rc-next li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: rgba(8, 19, 32, 0.55); font-size: 13px; }
+.rc-tasks li .ico, .rc-next li .ico { width: 20px; height: 20px; flex: none; }
+.rc-tasks li span, .rc-next li span { flex: 1; }
+.rc-tasks li i { font-style: normal; font-weight: 800; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.rc-tasks li.ok { background: rgba(47, 122, 58, 0.35); }
+.rc-tasks li.ok i { color: #7ee08a; }
+.rc-tasks li.ok span { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.35); }
+.rc-rel li { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 13px; background: rgba(8, 19, 32, 0.4); }
+.rc-rel em { font-style: normal; font-weight: 800; }
+.rc-note { color: #c9dbe6; font-size: 12.5px; margin: 8px 0 0; }
+
+/* мебель и обустройство */
+.decor-shop, .decor-arrange { width: min(600px, 100%); max-height: 92%; display: flex; flex-direction: column; }
+.ds-tabs { padding: 4px 12px; flex-wrap: wrap; }
+.ds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; padding: 6px 12px; overflow-y: auto; overscroll-behavior: contain; }
+.ds-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; padding: 6px 6px 8px; }
+.ds-card img { width: 72px; height: 72px; image-rendering: pixelated; }
+.ds-card b { font-size: 12.5px; line-height: 1.2; }
+.ds-card small { color: var(--muted); font-size: 11px; }
+.ds-card em { font-style: normal; font-size: 11.5px; color: #7ee08a; font-weight: 700; }
+.ds-card em.no { color: #ff9b8a; font-weight: 600; }
+.ds-card.own { opacity: 0.8; }
+.da-body { overflow-y: auto; padding: 4px 12px; overscroll-behavior: contain; }
+.da-body .fld { margin: 8px 0; }
+.da-body .chips { flex-wrap: wrap; }
+.decor-shop .note, .decor-arrange .note { padding: 0 14px; }
+
 /* газета */
 .paper { width: min(560px, 100%); max-height: 84%; display: flex; flex-direction: column; color: #1d2228; padding: 4px 4px 0; }
 .pp-mast { text-align: center; border-bottom: 3px double #1d2228; padding: 6px 8px 4px; }

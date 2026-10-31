@@ -29,7 +29,7 @@ const G = {
       flags: {},
       daily: {},
       stats: { deliveries: 0, baristaShifts: 0, officeShifts: 0, goodShifts: 0, lessons: 0, toys: 0, gigs: 0 },
-      crime: 0, ads: {}, jobTrack: null, paperDay: -1,
+      crime: 0, ads: {}, jobTrack: null, paperDay: -1, crazy: 0, today: null, lastDay: null,
       quests: {},
       job: { hired: false, level: 0 },
       rent: { due: 7, amount: 20000, locked: false },
@@ -170,6 +170,8 @@ const G = {
     Romance.onNewDay();
     Life.onNewDay();
     City.onNewDay();
+    Fun.onNewDay();
+    Day.onNewDay();
     this.events.push(() => Quests.onNewDay());
   },
 
@@ -181,6 +183,7 @@ const G = {
   },
   earn(n, why) {
     this.s.money += n;
+    Day.note('earn', n);
     UI.toast(`+${fmtMoney(n)}${why ? ' · ' + why : ''}`, 'good');
     Sfx.play('coin');
   },
@@ -188,6 +191,7 @@ const G = {
   pay(n) {
     if (this.s.money < n) { UI.toast(`Не хватает денег: нужно ${fmtMoney(n)}`, 'bad'); Sfx.play('error'); return false; }
     this.s.money -= n;
+    Day.note('spend', n);
     return true;
   },
   lv(skill) { return Math.floor(this.s.xp[skill] + 1e-6); },
@@ -200,6 +204,7 @@ const G = {
   addRel(id, v) {
     const s = this.s;
     s.rel[id] = clamp((s.rel[id] || 0) + v, 0, 100);
+    Day.note('rel', id, v);
     if (v > 0) UI.toast(`${NPCS[id].name}: отношения +${v}`, 'info');
     if (v < 0) UI.toast(`${NPCS[id].name}: отношения ${v}`, 'bad');
   },

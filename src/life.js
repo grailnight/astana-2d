@@ -113,6 +113,7 @@ const Life = (() => {
     const st = s();
     if (st.cards.includes(c.id)) return;
     st.cards.push(c.id);
+    Day.note('card');
     Sfx.play('success');
     UI.toast(`Открытка «${c.name}» (${st.cards.length}/${CARDS.length}). ${c.fact}`, 'quest');
     if (st.cards.length === 6) msg('mama', 'Ты прислал(а) мне уже шесть открыток! Повесила их на холодильник.'.replace('прислал(а)', gx('прислал', 'прислала')));
@@ -137,6 +138,12 @@ const Life = (() => {
     { id: 'cards6', tier: 'bronze', name: 'Турист', desc: 'Собрать 6 открыток', check: (st) => st.cards.length >= 6 },
     { id: 'cards', tier: 'gold', name: 'Знаток Астаны', desc: 'Собрать все открытки', check: (st) => st.cards.length >= CARDS.length },
     { id: 'winter', tier: 'silver', name: 'Перезимовал', desc: 'Прожить в Астане 20 дней', check: (st) => st.day >= 20 },
+    { id: 'days5', tier: 'bronze', name: 'Деловой человек', desc: 'Пять дней со всеми тремя делами', check: (st) => (st.stats.fullDays || 0) >= 5 },
+    { id: 'cozy', tier: 'silver', name: 'Уютный дом', desc: 'Уют дома 75 и больше', check: () => Decor.comfort('home') >= 75 || Decor.comfort('flat') >= 75 },
+    { id: 'weird', tier: 'bronze', name: 'Городской чудак', desc: '15 странных поступков', check: (st) => (st.stats.absurd || 0) >= 15 },
+    { id: 'legend', tier: 'gold', name: 'Легенда Астаны', desc: 'Чудачество 75 и выше', check: (st) => (st.crazy || 0) >= 75 },
+    { id: 'lick', tier: 'bronze', name: 'Примёрз', desc: 'Лизнуть столб на морозе', check: (st) => !!(st.fun && st.fun.licked) },
+    { id: 'snow', tier: 'silver', name: 'Снеговик-мастер', desc: 'Слепить 5 снеговиков', check: (st) => !!(st.fun && st.fun.made >= 5) },
   ];
   function checkMedals() {
     const st = s();
@@ -144,6 +151,7 @@ const Life = (() => {
     for (const m of MEDALS) {
       if (st.medals.includes(m.id) || !m.check(st)) continue;
       st.medals.push(m.id);
+      Day.note('medal', m.name);
       UI.toast(`Медаль «${m.name}»!`, 'medal');
       Sfx.play('success');
     }

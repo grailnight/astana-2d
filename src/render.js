@@ -127,6 +127,7 @@ const Render = (() => {
     for (const c of Ents.cars) if (c.x > vx0 && c.x < vx1 && c.y > vy0 && c.y < vy1) list.push({ y: c.y + 6, car: c });
     for (const n of Content.worldNpcs) if (n.visible()) list.push({ y: n.ty * TILE + 12, npc: n });
     for (const pg of City.pigeons) if (pg.away <= 0 && pg.x > vx0 && pg.x < vx1 && pg.y > vy0 && pg.y < vy1) list.push({ y: pg.y, pig: pg });
+    for (const sm of Fun.snowmen()) { const x = sm.tx * TILE + 8, y = sm.ty * TILE + 12; if (x > vx0 && x < vx1 && y > vy0 && y < vy1) list.push({ y, snowman: sm }); }
     list.push({ y: p.y, player: true });
     list.sort((a, b) => a.y - b.y);
 
@@ -144,6 +145,7 @@ const Render = (() => {
         drawChar(it.ped.sheet, it.ped.x, it.ped.y, it.ped.dir, !!it.ped.tgt && it.ped.pause <= 0, it.ped.anim);
       } else if (it.car) drawCar(it.car);
       else if (it.pig) drawPigeon(it.pig);
+      else if (it.snowman) drawSnowman(it.snowman);
       else if (it.npc) {
         const n = it.npc;
         const sheet = n.sheet || (n.sheet = Art.charSheet(NPCS[n.id].look));
@@ -174,6 +176,25 @@ const Render = (() => {
     drawLabels(info);
     drawMarkers(info);
     drawCold();
+  }
+
+  // Снеговик игрока: три кома, морковка, руки-ветки и шапка
+  function drawSnowman(sm) {
+    const u = charK();
+    const X = sx(sm.tx * TILE + 8), Y = sy(sm.ty * TILE + 12);
+    const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(X + x * u), Math.round(Y + y * u), w * u, h * u); };
+    shadow(sm.tx * TILE + 8, sm.ty * TILE + 11, 7, 2.5);
+    const W = '#f4f8fb', S2 = '#cfdce5';
+    R(-8, -14, 16, 13, W); R(-9, -11, 18, 8, W); R(-8, -3, 16, 2, S2);
+    R(-6, -25, 12, 11, W); R(-7, -22, 14, 6, W); R(-6, -15, 12, 1, S2);
+    R(-4, -33, 8, 8, W); R(-5, -31, 10, 4, W);
+    R(-2, -30, 1, 1, '#1b1d22'); R(1, -30, 1, 1, '#1b1d22'); R(0, -28, 4, 1, '#e8701a'); R(-2, -26, 4, 1, '#3a3f48');
+    R(-1, -21, 1, 1, '#1b1d22'); R(-1, -18, 1, 1, '#1b1d22');
+    R(-12, -22, 6, 1, '#6b4a32'); R(-13, -24, 1, 2, '#6b4a32'); R(6, -22, 6, 1, '#6b4a32'); R(12, -24, 1, 2, '#6b4a32');
+    if (sm.hat === 0) { R(-4, -38, 8, 5, '#f3f0e6'); R(-5, -34, 10, 1, '#2a2a2a'); R(-1, -37, 2, 2, '#c0392b'); }
+    else if (sm.hat === 1) { R(-5, -37, 10, 4, '#6b4a32'); R(-6, -34, 2, 4, '#6b4a32'); R(4, -34, 2, 4, '#6b4a32'); }
+    else if (sm.hat === 2) { R(-6, -25, 12, 2, '#2a6f97'); R(3, -24, 2, 5, '#f2c14e'); R(-3, -36, 6, 3, '#9aa4ad'); }
+    else { R(-4, -38, 8, 5, '#9aa4ad'); R(-5, -34, 10, 1, '#7d878e'); }
   }
 
   // Голубь в масштабе персонажей: клюёт, вертит головой, вспархивает
@@ -253,7 +274,7 @@ const Render = (() => {
       const n = it.npc;
       plate(NPCS[n.id].name, n.x * TILE, n.y * TILE - 38, { size: 3.4, bg: 'rgba(19,40,58,0.85)', color: '#eef6fa', border: false });
     }
-    plate(Content.locName(R.locId), rw / 2, -6, { size: 4, bg: 'rgba(19,40,58,0.92)' });
+    plate(Content.locName(R.locId) + (Decor.SLOTS[R.id] ? ` · уют ${Decor.comfort(R.id)}` : ''), rw / 2, -6, { size: 4, bg: 'rgba(19,40,58,0.92)' });
     if (info && info.near && info.near.label) {
       const n = info.near;
       plate('E', n.x, n.y + Math.sin(time * 5) * 1.2, { size: 4, bg: '#2ec4e6', color: '#0d1b2a', border: false, weight: 800 });

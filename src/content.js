@@ -122,6 +122,9 @@ const Content = (() => {
     const h = G.hour();
     if (h >= 7) mins = (24 - h) * 60 + 7 * 60; else mins = (7 - h) * 60;
     mins = Math.round(mins);
+    // перед сном дома — итоги дня и что ждёт завтра
+    const atHome = quality >= 1 && Inside.active() && Decor.SLOTS[Inside.room().id];
+    if (quality >= 1) await Day.onSleep();
     await UI.fade('Спокойной ночи…', async () => {
       G.advance(mins, { asleep: true });
       if (quality < 1) st.energy = Math.min(st.energy, 60);
@@ -129,12 +132,14 @@ const Content = (() => {
     });
     const wx = WEATHER_NAMES[st.weather.kind];
     UI.toast(`Утро: ${fmtDate(st.day)}, ${G.temp()}°C, ${wx}`, 'info');
+    if (atHome) { const c = Decor.comfort(Inside.room().id); const m = Math.round(c / 8); if (m > 0) { G.add('mood', m); UI.toast(`Уютный дом: настроение +${m}`, 'good'); } }
   }
 
   async function eat(itemId) {
     const it = ITEMS[itemId];
     if (!G.has(itemId) || !it.food) return;
     G.take(itemId);
+    Day.note('eat', itemId);
     G.add('food', it.food); G.add('mood', it.mood || 0); if (it.energy) G.add('energy', it.energy);
     G.advance(10);
     UI.toast(`${it.name}: сытость +${it.food}`, 'good');
@@ -489,6 +494,7 @@ const Content = (() => {
     const to = opts[c];
     if (!G.canPay(BUS_FARE)) { if (!await City.dodgeFare()) return; } else G.pay(BUS_FARE);
     const mins = Math.round(10 + (Math.abs(to.tx - stop.tx) + Math.abs(to.ty - stop.ty)) * 0.35);
+    Day.note('bus');
     await UI.fade(`Автобус едет до «${to.name}»…`, async () => {
       G.advance(mins);
       Ents.placePlayer(to.tx, to.ty);
@@ -527,6 +533,7 @@ const Content = (() => {
 
   async function call(id) {
     const st = s();
+    Day.note('call', id);
     Sfx.play('ring');
     if (id === 'mama') {
       await say('mama', `Алло, балам! ${pick(['Как ты там, кушаешь нормально?', 'Тепло одеваешься? Там же ветер!', 'Папа передаёт привет. Говорит, гордится тобой.'])}`);
@@ -800,6 +807,7 @@ const Content = (() => {
         buyCloth('puffer', 28000), buyCloth('ushanka', 6000), buyCloth('chapan', 35000), buyCloth('kalpak', 9000), buyCloth('hoodie', 12000),
         buyItem('kazy', 4000), buyItem('kurt', 800), buyItem('kumys', 1200),
         City.buyPaper(), City.stealAction(),
+        { label: 'Торговаться за курт до победы', icon: 'coin', time: 30, sub: 'чудачество · обаяние +', disabled: s().daily.haggle ? 'Ержан-ага уже прячется от тебя' : null, run: async () => { s().daily.haggle = true; G.advance(30); if (!G.pay(100)) return; G.give('kurt', 1); G.addXp('charm', 0.06); await say('erzhan', 'Ой-бай, ты торгуешься лучше моей тёщи! Забирай за сто тенге, только уходи, покупатели ждут!'); Fun.absurd('haggle', 2, 4); } },
       ],
     },
     shawarma: {
@@ -953,6 +961,7 @@ const Content = (() => {
         },
         { label: 'Кино', price: 2500, time: 120, sub: 'настроение +18', run: async () => { if (!G.pay(2500)) return; await UI.fade('Попкорн и новый фильм…', async () => G.advance(120)); G.add('mood', 18); } },
         buyFood('Фудкорт', 2600, 50, 4, 0, 30),
+        { label: 'Фото у пальмы в пуховике', icon: 'camera', time: 10, sub: 'чудачество · настроение +4', disabled: G.season() !== 'winter' ? 'смешно только зимой' : null, run: async () => { G.advance(10); await say(null, 'Пальма, песок, +30 — и ты в пуховике и ушанке. Фото улетает маме с подписью «Отдыхаю на Мальдивах». Мама: «Шапку не снимай!»'); Fun.absurd('palm', 2, 4); } },
         buyCloth('suit', 45000), buyCloth('gala', 38000), buyCloth('hoodie', 15000), buyCloth('pufferN', 52000), buyCloth('beanie', 3500),
         buyItem('flowers', 3000),
       ],
@@ -982,7 +991,7 @@ const Content = (() => {
     akorda: {
       name: 'Акорда', kz: 'Ақорда', hours: [0, 24], tone: 'calm',
       desc: () => 'Резиденция президента. Внутрь не пускают, но голубой купол со шпилем отлично смотрится на фото.',
-      actions: () => [{ label: 'Сделать фото', time: 10, sub: 'настроение +3 · раз в день', disabled: s().daily.akorda ? gx('уже сфоткал сегодня', 'уже сфоткала сегодня') : null, run: async () => { s().daily.akorda = true; G.advance(10); G.add('mood', 3); UI.toast('Фото на фоне Акорды отправлено маме', 'good'); } }],
+      actions: () => [{ label: 'Помахать в окна Акорды', icon: 'hand', time: 5, sub: 'чудачество', run: async () => { G.advance(5); await say(null, 'Ты долго машешь в сторону голубого купола. Охранник у ворот неуверенно машет в ответ. Кажется, вы подружились.'); Fun.absurd('akorda', 2, 3); } }, { label: 'Сделать фото', time: 10, sub: 'настроение +3 · раз в день', disabled: s().daily.akorda ? gx('уже сфоткал сегодня', 'уже сфоткала сегодня') : null, run: async () => { s().daily.akorda = true; G.advance(10); G.add('mood', 3); UI.toast('Фото на фоне Акорды отправлено маме', 'good'); } }],
     },
     arena: {
       name: 'Астана Арена', kz: 'Астана Арена', hours: [10, 22], tone: 'work',
@@ -1050,6 +1059,7 @@ const Content = (() => {
         buyItem('scooter', 65000), buyItem('laptop', 140000), buyItem('flowers', 3000),
         buyItem('sketchbook', 3500), buyItem('film', 4000), buyItem('book', 4500), buyItem('ring', 180000),
         buyFood('Фудкорт', 2400, 50, 3, 0, 30), buyCloth('beanie', 3500),
+        Decor.shopAction(),
       ],
     },
     station1: {
@@ -1059,6 +1069,7 @@ const Content = (() => {
         buyFood('Беляш', 400, 15, 1, 0, 10),
         buyFood('Чай из термоса у бабушки', 200, 4, 3, 4, 5),
         City.buyPaper(),
+        { label: 'Помахать уходящему поезду', icon: 'hand', time: 5, sub: 'чудачество · настроение +3', run: async () => { G.advance(5); await say(null, `Ты машешь вслед поезду, как в кино. Проводница из последнего вагона машет в ответ. Ты никого не ${gx('провожал', 'провожала')}, но стало тепло.`); Fun.absurd('train', 1, 3); } },
         { label: 'Умыться в туалете вокзала', price: 100, time: 10, icon: 'drop', sub: 'гигиена +25', run: async () => { if (!G.pay(100)) return; G.advance(10); G.add('hyg', 25); } },
         {
           label: 'Поспать на скамейке', time: 0, sub: 'если некуда идти · энергия до 60', disabled: G.hour() < 21 && G.hour() >= 6 ? 'только ночью' : null,

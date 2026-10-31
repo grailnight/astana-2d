@@ -110,10 +110,10 @@ const Inside = (() => {
       R(26, 16, 3, 10, '#e84393'); R(26, 16, 3, 2, '#f2a7c3'); // полотенце
       return cv;
     },
-    plant() {
+    plant(o) {
       const { cv, R } = pad(16, 30);
       R(4, 20, 8, 9, '#b5651d'); R(3, 19, 10, 2, '#cf7a2e'); R(5, 29, 6, 1, '#7a4215');
-      const L = '#3f8f4a', LL = '#5cb85c', LD = '#2a6a35';
+      const L = o && o.wilted ? '#8a7a3a' : '#3f8f4a', LL = o && o.wilted ? '#a89448' : '#5cb85c', LD = o && o.wilted ? '#6b5a2a' : '#2a6a35';
       R(7, 6, 2, 14, LD); R(2, 8, 6, 4, L); R(9, 4, 6, 4, L); R(1, 13, 6, 3, LL); R(9, 11, 6, 4, LL); R(5, 1, 5, 5, L); R(6, 2, 2, 2, LL); R(3, 9, 2, 1, LL); R(11, 5, 2, 1, LL);
       return cv;
     },
@@ -153,6 +153,64 @@ const Inside = (() => {
     lamp() {
       const { cv, R } = pad(12, 40);
       R(1, 0, 10, 8, '#f2e3c0'); R(0, 7, 12, 2, '#d9c7a3'); R(5, 9, 2, 28, '#3a3f48'); R(2, 37, 8, 3, '#3a3f48');
+      return cv;
+    },
+    bigplant(o) {
+      const { cv, R } = pad(18, 40);
+      const L = o.wilted ? '#8a7a3a' : '#2f7a3a', LL = o.wilted ? '#a89448' : '#4caf50', LD = o.wilted ? '#6b5a2a' : '#1f5a2a';
+      R(4, 29, 10, 10, '#e8e0d0'); R(3, 28, 12, 2, '#f4f0e6'); R(5, 39, 8, 1, '#9a8f7a');
+      R(8, 12, 2, 17, LD);
+      for (const [x, y, w, h] of [[1, 4, 7, 6], [10, 2, 7, 6], [0, 13, 7, 5], [11, 11, 7, 6], [4, 0, 6, 5], [3, 19, 5, 4], [11, 19, 5, 4]]) { R(x, y, w, h, L); R(x + 1, y + 1, w - 3, 1, LL); R(x + Math.floor(w / 2), y + 1, 1, h - 2, LD); }
+      return cv;
+    },
+    aquarium() {
+      const { cv, R } = pad(32, 34);
+      R(0, 16, 32, 18, WOOD); R(0, 16, 32, 2, WOOD_L); R(2, 20, 12, 12, WOOD_D); R(18, 20, 12, 12, WOOD_D);
+      R(1, 0, 30, 16, '#2b3a44'); R(2, 1, 28, 14, '#6fc0dc'); R(2, 1, 28, 3, '#9fd8ea'); R(2, 12, 28, 3, '#e8d3a8');
+      R(5, 8, 1, 4, '#3f8f4a'); R(6, 6, 1, 6, '#4caf50'); R(25, 7, 1, 5, '#3f8f4a'); R(26, 9, 1, 3, '#4caf50');
+      R(10, 6, 4, 2, '#e8a317'); R(9, 6, 1, 2, '#f2c14e'); R(18, 9, 3, 2, '#e5533d'); R(21, 9, 1, 2, '#f08aa8'); R(14, 11, 3, 1, '#2ec4e6');
+      R(22, 3, 1, 1, '#eef6fa'); R(23, 5, 1, 1, '#eef6fa'); R(12, 2, 1, 1, '#eef6fa');
+      return cv;
+    },
+    console() {
+      const { cv, R } = pad(32, 22);
+      R(0, 6, 32, 6, WOOD_L); R(0, 12, 32, 8, WOOD); R(0, 20, 32, 2, WOOD_D); R(3, 14, 10, 4, WOOD_D);
+      R(16, 1, 12, 5, '#1b1d22'); R(17, 2, 10, 1, '#3a3f48'); R(26, 4, 1, 1, '#2ec4e6'); // приставка
+      R(4, 3, 7, 3, '#2b2f36'); R(5, 4, 1, 1, '#e5533d'); R(9, 4, 1, 1, '#2ec4e6'); R(7, 2, 1, 1, '#2b2f36'); // джойстик
+      R(15, 14, 14, 1, '#3a3f48'); R(15, 16, 10, 1, '#3a3f48');
+      return cv;
+    },
+    bike() {
+      const { cv, R } = pad(22, 32);
+      R(2, 26, 18, 3, '#3a3f48'); R(4, 29, 3, 3, '#1b1d22'); R(15, 29, 3, 3, '#1b1d22');
+      R(14, 12, 3, 14, '#5d6670'); R(6, 16, 3, 10, '#5d6670'); R(5, 14, 6, 3, '#1b1d22'); // седло
+      R(13, 6, 7, 2, '#1b1d22'); R(15, 8, 2, 4, '#5d6670'); R(14, 18, 6, 6, '#c0392b'); R(15, 19, 4, 4, '#e5533d'); // руль и маховик
+      R(16, 4, 3, 2, '#2ec4e6');
+      return cv;
+    },
+    bookcase() {
+      const { cv, R } = pad(18, 44);
+      R(0, 0, 18, 44, WOOD_D); R(1, 1, 16, 42, WOOD); R(0, 0, 18, 2, WOOD_L);
+      const cols = ['#a3262a', '#2a6f97', '#f2c14e', '#3f8f4a', '#5b3a6e', '#e8a317', '#7a1f1f', '#2b2f36'];
+      for (let sh = 0; sh < 4; sh++) {
+        const y = 3 + sh * 10;
+        R(1, y + 8, 16, 2, WOOD_D);
+        for (let i = 0; i < 6; i++) R(2 + i * 2 + (i > 3 ? 1 : 0), y + 1 + (i % 3 === 1 ? 1 : 0), 2, 7 - (i % 3 === 1 ? 1 : 0), cols[(i + sh * 3) % cols.length]);
+      }
+      return cv;
+    },
+    shanyrak() {
+      // торшер с абажуром в виде шаңырака — деревянного круга юрты
+      const { cv, R } = pad(18, 42);
+      R(1, 2, 16, 10, '#f2e3c0'); R(0, 10, 18, 2, '#c99a6a'); R(0, 2, 18, 2, '#c99a6a');
+      R(8, 0, 2, 12, '#a8744a'); R(3, 6, 12, 1, '#a8744a'); R(4, 4, 1, 6, '#a8744a'); R(13, 4, 1, 6, '#a8744a');
+      R(8, 12, 2, 26, '#5e3b22'); R(4, 38, 10, 3, '#5e3b22');
+      return cv;
+    },
+    beanbag(o) {
+      const c = o.color || '#e8a317';
+      const { cv, R } = pad(22, 18);
+      R(3, 2, 16, 14, c); R(1, 6, 20, 9, c); R(5, 0, 12, 4, shade(c, 0.15)); R(4, 4, 6, 2, shade(c, 0.3)); R(2, 14, 18, 3, shade(c, -0.3));
       return cv;
     },
   };
@@ -207,6 +265,15 @@ const Inside = (() => {
         for (let i = 0; i < 4; i++) { R(x + 6, 17 + i * 4, (W - 12) * (0.5 + (i % 2) * 0.15), 1, '#e3e9ec'); R(x + W - 12, 17 + i * 4, 6, 1, '#e3e9ec'); }
         break;
       }
+      case 'photo': R(x + 3, 14, 10, 12, '#f4f0e6'); R(x + 4, 15, 8, 8, '#9fc3d6'); R(x + 5, 18, 2, 5, '#3f6f8f'); R(x + 5, 16, 2, 2, '#d9a982'); R(x + 9, 18, 2, 5, '#2f6fd1'); R(x + 9, 16, 2, 2, '#e0b38c'); R(x + 5, 15, 2, 1, '#c0392b'); R(x + 4, 24, 8, 1, '#c9c2b4'); break;
+      case 'kzmap': {
+        R(x + 2, 10, w * 16 - 4, 22, '#f4f0e6'); R(x + 3, 11, w * 16 - 6, 20, '#cfe3ef');
+        const pts = [[6, 18, 8, 6], [10, 15, 10, 9], [18, 14, 6, 10], [12, 23, 9, 4], [22, 17, 5, 6]];
+        for (const [a, b, c2, d] of pts) R(x + a, b, c2, d, '#e8c26b');
+        R(x + 18, 19, 2, 2, '#c0392b'); R(x + 21, 27, 2, 1, '#2f6fd1');
+        break;
+      }
+      case 'poster': R(x + 3, 9, 10, 15, '#2a6f97'); R(x + 4, 10, 8, 8, '#f2c14e'); R(x + 7, 11, 2, 6, '#eef6fa'); R(x + 6, 11, 4, 2, '#f2c14e'); R(x + 4, 19, 8, 1, '#eef6fa'); R(x + 5, 21, 6, 1, '#eef6fa'); break;
       case 'felt': R(x + 3, 9, 10, 26, '#e8a317'); R(x + 4, 10, 8, 24, '#c97a2e'); for (let yy = 13; yy < 32; yy += 6) { R(x + 6, yy, 4, 1, '#7a1f1f'); R(x + 5, yy + 1, 6, 1, '#7a1f1f'); R(x + 6, yy + 2, 4, 1, '#7a1f1f'); } break;
       default:
     }
@@ -243,7 +310,7 @@ const Inside = (() => {
   const ROOMS = {
     home: {
       W: 13, H: 12, door: 6, floor: 'wood', wall: '#e6d5b0', pat: '#d8c49a', trim: '#8a6a45', top: '#5b4636',
-      deco: [['kilim', 1, 2], ['clock', 4.5, 1], ['window', 7, 2], ['dombra', 9, 1], ['picture', 3, 1]],
+      deco: [['clock', 4.5, 1], ['window', 7, 2]],
       rug: [3, 4, 4, 4, '#7a1f1f', '#f2c14e'],
       items: [
         { k: 'bed', x: 1, y: 3, w: 2, h: 3, name: 'Кровать', act: /Спать|Вздремнуть/, btn: ['СПАТЬ', 'bed'], color: '#2a6f97' },
@@ -251,29 +318,27 @@ const Inside = (() => {
         { k: 'sofa', x: 3, y: 6, w: 4, h: 1, name: 'Диван', act: /сериал|Вздремнуть/, btn: ['СЕСТЬ', 'film'], color: '#5b6c8f', pillow: '#c0392b' },
         { k: 'desk', x: 7, y: 3, w: 2, h: 1, name: 'Письменный стол', act: /Учить код/, btn: ['УЧИТЬ', 'code'] },
         { k: 'chair', x: 8, y: 4, w: 1, h: 1, solid: false, dx: 1 },
-        { k: 'wardrobe', x: 10, y: 3, w: 2, h: 1, name: 'Шкаф', act: /Гардероб/, btn: ['ШКАФ', 'shirt'] },
+        { k: 'wardrobe', x: 10, y: 3, w: 2, h: 1, name: 'Шкаф', act: /Гардероб/, custom: 'decor', btn: ['ШКАФ', 'shirt'] },
         { k: 'fridge', x: 11, y: 5, w: 1, h: 1, name: 'Холодильник', act: /ужин/, eat: true, btn: ['ЕДА', 'bowl'] },
         { k: 'stove', x: 11, y: 6, w: 1, h: 1, name: 'Плита', act: /ужин/, btn: ['ГОТОВИТЬ', 'bowl'] },
         { k: 'sink', x: 11, y: 7, w: 1, h: 1, name: 'Раковина', custom: 'wash', btn: ['УМЫТЬСЯ', 'shower'] },
         { k: 'dining', x: 9, y: 7, w: 1, h: 1, name: 'Дастархан', custom: 'tea', btn: ['ШАЙ', 'cup'], dx: 0 },
         { k: 'stool', x: 9, y: 8, w: 1, h: 1, solid: false, dx: 3 },
         { k: 'shower', x: 1, y: 8, w: 2, h: 2, name: 'Душ', act: /душ/, btn: ['ДУШ', 'shower'] },
-        { k: 'plant', x: 1, y: 7, w: 1, h: 1, solid: true },
       ],
       npcs: () => (G.s.homeId === 'home' || !G.s.flags.ownFlat) && G.hour() >= 8 && G.hour() < 22 ? [{ id: 'gulnar', x: 9.5, y: 9.6, dir: 2 }] : [],
     },
     flat: {
       W: 14, H: 12, door: 6, floor: 'parquet', wall: '#eef2f4', pat: '#e2e8ec', trim: '#9aa4ad', top: '#3a4552',
-      deco: [['window', 4, 5], ['picture', 1, 1], ['shelf', 9, 2]],
+      deco: [['window', 4, 5]],
       rug: [8, 4, 4, 4, '#2a6f97', '#eef6fa'],
       items: [
         { k: 'bed', x: 1, y: 3, w: 2, h: 3, name: 'Кровать', act: /Спать|Вздремнуть/, btn: ['СПАТЬ', 'bed'], color: '#e8a317' },
         { k: 'desk', x: 4, y: 3, w: 2, h: 1, name: 'Рабочий стол', act: /Учить код/, btn: ['УЧИТЬ', 'code'] },
         { k: 'chair', x: 5, y: 4, w: 1, h: 1, solid: false, dx: 1 },
-        { k: 'plant', x: 7, y: 3, w: 1, h: 1, solid: true },
         { k: 'tv', x: 9, y: 3, w: 2, h: 1, name: 'Телевизор', act: /сериал/, btn: ['ТВ', 'film'] },
         { k: 'sofa', x: 8, y: 6, w: 4, h: 1, name: 'Диван', act: /сериал|Вздремнуть/, btn: ['СЕСТЬ', 'film'], color: '#3a3f4a', pillow: '#2ec4e6' },
-        { k: 'wardrobe', x: 11, y: 3, w: 2, h: 1, name: 'Гардеробная', act: /Гардероб/, btn: ['ШКАФ', 'shirt'] },
+        { k: 'wardrobe', x: 11, y: 3, w: 2, h: 1, name: 'Гардеробная', act: /Гардероб/, custom: 'decor', btn: ['ШКАФ', 'shirt'] },
         { k: 'fridge', x: 12, y: 7, w: 1, h: 1, name: 'Холодильник', act: /ужин/, eat: true, btn: ['ЕДА', 'bowl'] },
         { k: 'stove', x: 12, y: 8, w: 1, h: 1, name: 'Плита', act: /ужин/, btn: ['ГОТОВИТЬ', 'bowl'] },
         { k: 'counterK', x: 12, y: 9, w: 1, h: 1, name: 'Кухня', custom: 'tea', btn: ['ШАЙ', 'cup'] },
@@ -329,7 +394,9 @@ const Inside = (() => {
     }
     // задняя стена
     R(0, 0, W, 6, def.top); R(TILE, 6, W - 2 * TILE, 42, def.wall);
-    for (let y = 8; y < 44; y += 6) for (let x = TILE + ((y / 6) % 2 ? 3 : 0); x < W - TILE; x += 6) R(x, y, 1, 2, def.pat);
+    if (def.ornament) {
+      for (let y = 10; y < 42; y += 10) for (let x = TILE + ((y / 10) % 2 ? 8 : 2); x < W - TILE - 4; x += 12) { R(x, y, 3, 1, def.pat); R(x - 1, y + 1, 5, 1, def.pat); R(x, y + 2, 3, 1, def.pat); R(x + 1, y + 1, 1, 1, def.trim); }
+    } else for (let y = 8; y < 44; y += 6) for (let x = TILE + ((y / 6) % 2 ? 3 : 0); x < W - TILE; x += 6) R(x, y, 1, 2, def.pat);
     R(TILE, 6, W - 2 * TILE, 1, shade(def.wall, -0.2));
     R(TILE, 44, W - 2 * TILE, 4, def.trim); R(TILE, 44, W - 2 * TILE, 1, shade(def.trim, 0.25));
     R(TILE, 48, W - 2 * TILE, 3, 'rgba(20,14,10,0.18)');
@@ -373,8 +440,7 @@ const Inside = (() => {
   async function enter(b) {
     const rid = roomFor(b);
     if (!rid) return false;
-    const def = ROOMS[rid];
-    for (const it of def.items) it._cv = null;
+    const def = Decor.build(rid, ROOMS[rid]);
     const winter = G.season() === 'winter';
     cur = {
       id: rid, locId: b.id, def, b, bg: null, bgKey: '',
@@ -442,6 +508,7 @@ const Inside = (() => {
       label: 'Попить шай', time: 15, icon: 'cup', sub: 'настроение +4 · энергия +3',
       run: async () => { G.advance(15); G.add('mood', 4); G.add('energy', 3); UI.toast('Горячий шай с молоком — как дома', 'good'); },
     }],
+    decor: () => Decor.homeActs(),
     rest: () => [{
       label: 'Отдохнуть за столиком', time: 30, icon: 'clock', sub: 'энергия +5 · настроение +3',
       run: async () => { await UI.fade('Смотришь в окно на прохожих…', async () => G.advance(30)); G.add('energy', 5); G.add('mood', 3); },
@@ -456,7 +523,11 @@ const Inside = (() => {
   }
 
   function useItem(it) {
-    const extra = () => [...(it.custom ? CUSTOM[it.custom]() : []), ...(it.eat ? eatList() : [])];
+    const extra = () => [
+      ...(typeof it.custom === 'function' ? it.custom() : it.custom ? CUSTOM[it.custom]() : []),
+      ...(it.eat ? eatList() : []),
+      ...Fun.objectActs(it, cur),
+    ];
     return UI.openLocation(cur.locId, { only: it.act || /^$/, title: it.name, compact: true, extra, icon: it.btn && it.btn[1] });
   }
 
@@ -492,5 +563,21 @@ const Inside = (() => {
     }
   }
 
-  return { enter, leave, active, locId, room, outsidePos, background, drawables, interactables, update, roomFor, ROOMS };
+  // после перестановки мебели — пересобрать комнату
+  function refresh() {
+    if (!cur) return;
+    cur.def = Decor.build(cur.id, ROOMS[cur.id]);
+    cur.bgKey = '';
+  }
+
+  // превью для каталога мебели
+  const furniture = (kind, o = {}) => FURN[kind]({ w: 1, ...o });
+  function wallPreview(kind, w) {
+    const { cv, R } = pad(w * 16 + 4, 44);
+    R(0, 0, cv.width, 44, '#e6d5b0');
+    wallDeco(R, kind, 2, w, SKY[0]);
+    return cv;
+  }
+
+  return { enter, leave, active, locId, room, outsidePos, background, drawables, interactables, update, roomFor, refresh, furniture, wallPreview, ROOMS };
 })();

@@ -70,11 +70,12 @@ const Social = (() => {
       const st = s();
       const tr = TRAITS[id] || { likes: [], dislike: null, joke: 0.5, compl: 0.5 };
       const daily = G.once('conv_' + id);
-      let stars = 0, turns = 4 + (G.lv('charm') >= 3 ? 1 : 0), complCount = 0, busy = false;
+      let stars = 0, turns = 4 + (G.lv('charm') >= 3 ? 1 : 0), complCount = 0, busy = false, pranked = false;
       const usedTopics = new Set();
       let text = opts.greet || pick(['Привет! Как дела?', 'О, привет! Рад(а) тебя видеть.', 'Сәлем! Что нового?']);
       text = npcG(id, text);
       if (st.hyg < 25) text = `Эм… привет. Ты давно в душе ${gx('был', 'была')}? Ладно, не моё дело.`;
+      else if ((st.crazy || 0) >= 45 && chance(0.4)) text = pick(['О, наша городская знаменитость! Что сегодня учудишь?', `Мне рассказали, что ты ${gx('делал', 'делала')} у фонтана… Это правда?!`, 'Привет! Только давай без твоих фокусов, ладно?']);
       const el = document.createElement('div');
       el.className = 'talk';
       el.style.setProperty('--tone', UI.toneOf(opts.loc) || '#2a5a80');
@@ -90,6 +91,7 @@ const Social = (() => {
           if (gain) G.addRel(id, gain);
         }
         if (stars >= 3) { st.talks3++; UI.toast('Отличный разговор! ★★★', 'quest'); Life.checkMedals(); }
+        Day.note('talk', stars);
         resolve(stars);
       };
 
@@ -101,6 +103,7 @@ const Social = (() => {
 
       function actions() {
         const out = [{ k: 'topic', label: 'Поговорить о…', icon: 'chat' }, { k: 'joke', label: 'Пошутить', icon: 'joke' }, { k: 'compl', label: 'Комплимент', icon: 'star' }];
+        if (!pranked) out.push({ k: 'prank', label: 'Разыграть', icon: 'joke' });
         const dater = Romance.isDater(id);
         const l = st.love;
         if (dater && ((st.rel[id] || 0) >= 25 || l.partner === id)) out.push({ k: 'flirt', label: 'Флиртовать', icon: 'heart' });
@@ -150,7 +153,7 @@ const Social = (() => {
         return offer;
       }
 
-      const odds = (base) => clamp(base + G.lv('charm') * 0.05 + (st.mood > 60 ? 0.05 : st.mood < 30 ? -0.1 : 0) - (st.hyg < 25 ? 0.2 : 0), 0.05, 0.95);
+      const odds = (base) => clamp(base + G.lv('charm') * 0.05 + (st.mood > 60 ? 0.05 : st.mood < 30 ? -0.1 : 0) - (st.hyg < 25 ? 0.2 : 0) - ((st.crazy || 0) >= 75 ? 0.08 : 0), 0.05, 0.95);
 
       async function spend(next, delta) {
         stars = clamp(stars + delta, -1, 3);
@@ -192,6 +195,13 @@ const Social = (() => {
         try {
           if (a.k === 'topic') { mode = 'topic'; offer = null; render(); }
           else if (a.k === 'joke') { const ok = chance(odds(tr.joke)); await spend(pick(ok ? JOKE_OK : JOKE_BAD), ok ? 1 : -0.5); }
+          else if (a.k === 'prank') {
+            pranked = true;
+            const ok = chance(odds(tr.joke - 0.15));
+            text = pick(Fun.PRANKS); render(); await wait(1300);
+            await spend(pick(ok ? Fun.PRANK_OK : Fun.PRANK_BAD)(), ok ? 1 : -1);
+            Fun.absurd('prank', 2, ok ? 3 : 0);
+          }
           else if (a.k === 'compl') { complCount++; const ok = complCount < 2 && chance(odds(tr.compl + Math.min(3, Romance.styleScore()) * 0.04)); await spend(pick(ok ? COMPL_OK : COMPL_BAD), ok ? 1 : complCount >= 2 ? -0.5 : 0); }
           else if (a.k === 'flirt') { const ok = chance(odds((tr.flirt || 0.3) + ((st.rel[id] || 0) - 40) / 200)); await spend(pick(ok ? FLIRT_OK : FLIRT_BAD), ok ? 1.5 : -1); if (ok) G.addRel(id, 2); }
           else if (a.k === 'number') { st.flags['phone_' + id] = true; await spend('Записывай: восемь, семь-семь-семь… Звони!', 0.5); UI.toast(`${NPCS[id].name} теперь в контактах`, 'info'); }

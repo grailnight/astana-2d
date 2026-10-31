@@ -54,10 +54,11 @@ const Main = (() => {
     }
     for (const ped of Ents.peds) {
       const d = dist(fx, fy, ped.x, ped.y - 4);
-      if (d < 16) out.push({ pri: 4, d, label: ped.police ? 'Заговорить с патрульным' : 'Заговорить с прохожим', x: ped.x, y: ped.y - 34, run: () => pedTalk(ped) });
+      if (d < 16) out.push({ pri: 4, d, label: ped.police ? 'Заговорить с патрульным' : 'Заговорить с прохожим', x: ped.x, y: ped.y - 34, run: () => Fun.pedMenu(ped, pedTalk) });
     }
     const flock = City.flockNear(fx, fy);
-    if (flock) out.push({ pri: 3, d: dist(fx, fy, flock.x, flock.y), label: 'Покормить голубей', btn: ['ГОЛУБИ', 'bird'], x: flock.x, y: flock.y - 14, run: City.feedPigeons(Render.now()) });
+    if (flock) out.push({ pri: 3, d: dist(fx, fy, flock.x, flock.y), label: 'Голуби', btn: ['ГОЛУБИ', 'bird'], x: flock.x, y: flock.y - 14, run: () => Fun.pigeonsMenu(City.feedPigeons(Render.now())) });
+    Fun.street(fx, fy, out);
     out.sort((a, b) => a.pri - b.pri || a.d - b.d);
     return out[0] || null;
   }
@@ -79,7 +80,7 @@ const Main = (() => {
   function pedTalk(ped) {
     const winter = G.season() === 'winter';
     const lines = ped.police ? City.POLICE_LINES : winter && chance(0.5) ? PED_LINES_WINTER : PED_LINES;
-    ped.bubble = { text: lines[ped.lineIdx % lines.length], until: Render.now() + 4 };
+    ped.bubble = { text: (!ped.police && Fun.fameLine()) || lines[ped.lineIdx % lines.length], until: Render.now() + 4 };
     ped.lineIdx++;
     ped.pause = 3;
     const p = Ents.player;
@@ -104,7 +105,9 @@ const Main = (() => {
     if (G.events.length) { runEvent(G.events.shift()); return; }
     const v = Input.vector();
     if (Inside.active()) { updateInside(dt, v); return; }
+    const px0 = Ents.player.x, py0 = Ents.player.y;
     Ents.movePlayer(v.x, v.y, dt, 74 * G.speedMul());
+    Day.note('walk', Math.hypot(Ents.player.x - px0, Ents.player.y - py0) / TILE * 50);
     G.advance(dt * GAME_MIN_PER_SEC, { outdoor: true, walking: Ents.player.moving });
     Ents.updatePeds(dt);
     Ents.updateCars(dt, (c) => { if (chance(0.5)) Sfx.play('honk'); });
@@ -112,7 +115,7 @@ const Main = (() => {
     const stop = City.patrol(dt);
     if (stop) { runEvent(stop); return; }
     questTimer -= dt;
-    if (questTimer <= 0) { questTimer = 0.5; Quests.tick(); }
+    if (questTimer <= 0) { questTimer = 0.5; Quests.tick(); Day.tick(); }
     districtTimer -= dt;
     if (districtTimer <= 0) {
       districtTimer = 0.6;
@@ -133,7 +136,7 @@ const Main = (() => {
     Ents.movePlayer(v.x, v.y, dt, 62);
     G.advance(dt * GAME_MIN_PER_SEC, { walking: Ents.player.moving });
     questTimer -= dt;
-    if (questTimer <= 0) { questTimer = 0.5; Quests.tick(); }
+    if (questTimer <= 0) { questTimer = 0.5; Quests.tick(); Day.tick(); }
     Inside.update(dt);
     if (!Inside.active()) { near = null; UI.hint(null); return; }
     near = Inside.interactables();

@@ -361,6 +361,16 @@ const City = (() => {
     }
   }
 
+  // пугнуть ближайшую стаю
+  function scarePigeons() {
+    const p = Ents.player;
+    for (const g of pigeons) {
+      if (g.fly > 0 || g.away > 0 || Math.hypot(p.x - g.x, p.y - g.y) > 60) continue;
+      const a = Math.atan2(g.y - p.y, g.x - p.x) + (Math.random() - 0.5);
+      g.vx = Math.cos(a) * 80; g.vy = Math.sin(a) * 40 - 25; g.fly = 2.5; g.dir = g.vx < 0 ? -1 : 1;
+    }
+  }
+
   function flockNear(x, y) {
     return pigeons.find((g) => g.fly <= 0 && g.away <= 0 && Math.hypot(g.x - x, g.y - y) < 26);
   }
@@ -376,6 +386,6 @@ const City = (() => {
 
   return {
     PAPER, JOBS, jobActions, buyPaper, openPaper, addCrime, crimeLabel, onNewDay, dodgeFare, stealAction,
-    patrol, policeLook, POLICE_LINES, pigeons, updatePigeons, flockNear, feedPigeons, isCrossing,
+    patrol, policeLook, POLICE_LINES, pigeons, updatePigeons, flockNear, feedPigeons, scarePigeons, isCrossing,
   };
 })();

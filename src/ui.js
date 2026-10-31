@@ -367,13 +367,14 @@ const UI = (() => {
     Sfx.play('click');
     Device.buzz(10);
     actBusy = true;
-    try { await x.run(); } finally { actBusy = false; }
+    try { await x.run(); Day.note('act', x.label); } finally { actBusy = false; }
     afterAction();
   }
 
   function afterAction() {
     if (!locEl) return;
     Quests.tick();
+    Day.tick();
     Life.checkMedals();
     if (!Content.isOpen(locId)) { toast(`«${Content.locName(locId)}» закрывается`, 'info'); closeLocation(); return; }
     renderLocation();
@@ -391,14 +392,14 @@ const UI = (() => {
     if (!top) return;
     if (top === locEl) { Sfx.play('door'); closeLocation(); }
     else if (top === phoneEl) { if (phoneApp) { phoneApp = null; renderPhone(); } else closePhone(); }
-    else if (top.classList.contains('wardrobe')) { const b = top.querySelector('[data-close]'); if (b) b.click(); }
+    else if (top.matches('.wardrobe, .recap, .paper, .decor-shop, .decor-arrange')) { const b = top.querySelector('[data-close]'); if (b) b.click(); }
   }
 
   // Системная кнопка «Назад» на Android: true — если что-то закрыли в игре
   function back() {
     const top = topModal();
     if (!top) return false;
-    if (top === locEl || top === phoneEl || top.classList.contains('wardrobe')) { escape(); return true; }
+    if (top === locEl || top === phoneEl || top.matches('.wardrobe, .recap, .paper, .decor-shop, .decor-arrange')) { escape(); return true; }
     if (top.classList.contains('title-screen') || top.classList.contains('creator')) return false;
     return true; // диалоги и мини-игры назад не закрываем, просто не выходим из игры
   }
@@ -479,7 +480,7 @@ const UI = (() => {
     const s = G.s, o = Quests.objective(), last = s.msgs[0];
     return `<div class="ph-widget fx-paper" data-app="quests">
       ${o ? `<b>${UIKit.img('star')}${escapeHtml(o.title)}</b><p>${escapeHtml(o.text)}</p>` : '<b>Свободная жизнь в Астане</b>'}
-      <div class="w-row"><span>${UIKit.img('coin')}${fmtMoney(s.money)}</span><span>${UIKit.img('medal')}${s.medals.length}/${Life.MEDALS.length}</span><span>${UIKit.img('mail')}${s.cards.length}/${Life.CARDS.length}</span></div>
+      <div class="w-row"><span>${UIKit.img('quest')}дела ${Day.progress().join('/')}</span><span>${UIKit.img('coin')}${fmtMoney(s.money)}</span><span>${UIKit.img('medal')}${s.medals.length}/${Life.MEDALS.length}</span><span>${UIKit.img('mail')}${s.cards.length}/${Life.CARDS.length}</span></div>
       ${last ? `<p class="w-last"><em>${escapeHtml(Life.senderName(last.from))}:</em> ${escapeHtml(last.text)}</p>` : ''}
     </div>`;
   }
@@ -500,7 +501,9 @@ const UI = (() => {
         if (step && step.progress) { const [a, b] = step.progress(); txt += ` · ${a >= 1000 ? fmtMoney(a) : a} / ${b >= 1000 ? fmtMoney(b) : b}`; }
         return `<button class="q-row ${s.track === q.id ? 'fx-btn on' : 'fx-tile'}" data-track="${q.id}"><b>${escapeHtml(q.title)}</b><small>${escapeHtml(txt)}</small><span class="q-steps">${q.steps.map((_, i) => `<i class="${i < r.step ? 'd' : i === r.step ? 'c' : ''}"></i>`).join('')}</span></button>`;
       };
-      return `${s.delivery ? `<div class="note"><b>${escapeHtml(side.title)}</b> ${escapeHtml(side.text)}</div>` : ''}
+      return `${Day.phoneHtml()}
+        <h3>Сюжет</h3>
+        ${s.delivery ? `<div class="note"><b>${escapeHtml(side.title)}</b> ${escapeHtml(side.text)}</div>` : ''}
         ${act.map(row).join('') || '<p class="empty">Нет активных заданий.</p>'}
         <p class="hint-small">Нажми на задание, чтобы следить за ним — стрелка на экране укажет путь.</p>
         ${fin.length ? `<h3>Завершённые</h3>${fin.map((q) => `<div class="q-row done"><b>${escapeHtml(q.title)}</b><small>${Quests.status(q.id) === 'failed' ? 'провалено' : 'выполнено'}</small></div>`).join('')}` : ''}`;
@@ -538,7 +541,7 @@ const UI = (() => {
         </div>
         <h3>Навыки</h3>${sk}
         <h3>Люди</h3><div class="counters"><div><b>${friends}</b><span>друзей</span></div><div><b>${escapeHtml(partner)}</b><span>любовь</span></div><div><b>${s.love.broken || 0}</b><span>разбитых сердец</span></div></div>
-        <h3>Закон</h3><div class="stats"><div><span>Нарушения</span>${bar(s.crime || 0, 100)}<em>${escapeHtml(City.crimeLabel())}</em></div></div>
+        <h3>Репутация</h3><div class="stats"><div><span>Нарушения</span>${bar(s.crime || 0, 100)}<em>${escapeHtml(City.crimeLabel())}</em></div><div><span>Чудачество</span>${bar(s.crazy || 0, 100)}<em>${escapeHtml(Fun.crazyLabel())}</em></div><div><span>Уют дома</span>${bar(Decor.comfort(), 100)}<em>${Decor.comfort()}/100</em></div></div>
         <h3>Жильё</h3><p class="note">${s.flags.ownFlat ? 'Своя квартира на левом берегу.' : `Комната у Гульнар-апай. Аренда ${fmtMoney(s.rent.amount)} — оплачено до конца дня ${s.rent.due}.${s.rent.locked ? ' Комната закрыта за долг!' : ''}`}</p>`;
     }
     if (tab === 'medals') {

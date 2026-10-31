@@ -9,7 +9,7 @@ SDK="${ANDROID_SDK:-${ANDROID_HOME:-$HOME/android-sdk}}"
 BT="$SDK/build-tools/${BUILD_TOOLS:-35.0.0}"
 PLATFORM="$SDK/platforms/android-35/android.jar"
 OUT="$ROOT/build/apk"
-VERSION_NAME="${VERSION_NAME:-1.3}"
+VERSION_NAME="${VERSION_NAME:-1.3.1}"
 VERSION_CODE="${VERSION_CODE:-$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)}"
 
 for f in "$BT/aapt2" "$BT/d8" "$BT/zipalign" "$BT/apksigner" "$PLATFORM"; do

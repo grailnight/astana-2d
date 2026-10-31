@@ -532,6 +532,19 @@ img, canvas { image-rendering: pixelated; }
   .pad { height: 50px; }
 }
 
+/* на телефоне в портрете игровой телефон — на весь экран */
+@media (max-width: 600px) {
+  .phone-wrap { display: block; padding: 0; background: #10151c; }
+  .phone-dev {
+    position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; box-shadow: none;
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 0 calc(2px + env(safe-area-inset-bottom, 0px));
+    animation: sheetUp 0.2s ease-out;
+  }
+  .ph-screen { border-radius: 0; }
+  .ph-status { padding: 4px 16px 6px; }
+  .phone-open #toasts { top: auto; bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
+}
+
 @keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } }
 @keyframes phoneUp { from { transform: translateY(40px) rotate(2deg); opacity: 0; } }
 @keyframes fadeIn { from { opacity: 0; } }

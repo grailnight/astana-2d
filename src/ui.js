@@ -17,8 +17,21 @@ const UI = (() => {
   function syncFocus() {
     document.body.classList.toggle('focus', modals.some((m) => m.matches('.mg, .ending, .creator, .title-screen, .talk')));
     document.body.classList.toggle('modal', modals.length > 0);
+    document.body.classList.toggle('phone-open', modals.length > 0 && modals[modals.length - 1].classList.contains('phone-wrap'));
   }
-  function pushModal(el) { layer().appendChild(el); modals.push(el); Input.clear(); syncFocus(); }
+  function pushModal(el) { el._openedAt = performance.now(); layer().appendChild(el); modals.push(el); Input.clear(); syncFocus(); }
+
+  // Защита от «проскока» нажатия: палец ещё на кнопке действия, а меню уже открылось —
+  // отпускание пальца не должно нажимать плитку под ним. Клик в новом окне засчитываем,
+  // только если касание началось после его открытия и окно открыто хотя бы 250 мс.
+  let lastDown = 0;
+  document.addEventListener('pointerdown', () => { lastDown = performance.now(); }, true);
+  document.addEventListener('click', (e) => {
+    if (e.detail === 0) return; // клавиатура и программные клики
+    const m = modals.find((x) => x.contains(e.target));
+    if (!m || !m._openedAt) return;
+    if (lastDown < m._openedAt || performance.now() - m._openedAt < 250) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
   function popModal(el) {
     const i = modals.indexOf(el);
     if (i >= 0) modals.splice(i, 1);

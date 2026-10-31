@@ -1,6 +1,6 @@
 'use strict';
 // Офлайн-кэш для установленной игры: файлы игры из кэша, шрифты — из кэша с фоновым обновлением.
-const CACHE = 'astana-v5';
+const CACHE = 'astana-v6';
 const SHELL = [
   './', 'index.html', 'style.css', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'src/util.js', 'src/art.js', 'src/world.js', 'src/entities.js', 'src/game.js', 'src/content.js', 'src/quests.js',

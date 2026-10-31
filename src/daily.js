@@ -40,6 +40,7 @@ const Day = (() => {
       case 'eat': t.ate[a] = true; break;
       case 'bus': t.bus++; break;
       case 'walk': t.walked += a; break;
+      case 'event': t.events = (t.events || 0) + 1; break;
       default:
     }
   }
@@ -72,6 +73,8 @@ const Day = (() => {
     absurd: { text: 'Сделай какую-нибудь глупость', icon: 'joke', kind: 'city', avail: () => true, done: (st, t) => t.absurd >= 1 },
     walk: { text: 'Пройди пешком 2 км', icon: 'map', kind: 'city', avail: () => true, done: (st, t) => t.walked >= 2000 },
     bus: { text: 'Прокатись на автобусе', icon: 'bus', kind: 'city', avail: () => true, done: (st, t) => t.bus >= 1 },
+    petfeed: { text: () => `Покорми ${Pet.has() ? s().pet.name : 'котёнка'}`, icon: 'cat', kind: 'people', avail: () => Pet.has(), done: (st) => Pet.has() && st.pet.fed === st.day },
+    helpout: { text: 'Помоги кому-нибудь на улице', icon: 'hand', kind: 'people', avail: () => true, done: (st, t) => (t.events || 0) >= 1 },
     kazfood: { text: 'Съешь баурсаки, казы или курт', icon: 'bowl', kind: 'city', avail: () => true, done: (st, t) => !!(t.ate.baursak || t.ate.kazy || t.ate.kurt) },
   };
 
@@ -121,7 +124,7 @@ const Day = (() => {
   // Что ждёт в указанный день: события, работа, погода, люди
   function hooks(day) {
     const st = s();
-    const out = [];
+    const out = [...Dreams.hooks(day), ...Lives.hooks(day), ...Pet.hooks(day)];
     const wd = weekday(day);
     const weekend = wd === 0 || wd === 6;
     const dayWord = day === st.day ? 'Сегодня' : 'Завтра';

@@ -186,6 +186,8 @@ const Quests = (() => {
       const left = d.stage === 'drop' ? Math.round(d.deadline - G.now()) : null;
       return { title: `Заказ #${d.id}`, text: d.stage === 'pickup' ? `Забери заказ: ${b.name}` : `Доставь: ${b.name}${left != null ? (left >= 0 ? ` · ${left} мин` : ' · опаздываешь!') : ''}`, target: b.id };
     }
+    const dream = Dreams.objective();
+    if (dream) return dream;
     if (st.jobTrack && World.byId[st.jobTrack]) return { title: 'Вакансия из газеты', text: `Загляни: ${World.byId[st.jobTrack].name}`, target: st.jobTrack };
     if (!q) return side;
     const r = st.quests[q.id];

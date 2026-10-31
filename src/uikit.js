@@ -43,6 +43,8 @@ const UIKit = (() => {
     laptop: ['............', '.kkkkkkkkkk.', '.kddddddddk.', '.kdGddddddk.', '.kddGGGdddk.', '.kddddddddk.', '.kkkkkkkkkk.', 'kgggggggggggk'.slice(0, 12), 'khhhhhhhhhhk', 'kkkkkkkkkkkk', '............', '............'],
     moon: ['....kkkk....', '...kyyyk....', '..kyyyk.....', '.kyyyk......', '.kyyk.......', '.kyyk.......', '.kyyk.......', '.kyyyk......', '..kyyyk.....', '...kyyyk....', '....kkkk....', '............'],
     wheel: ['...kkkkkk...', '..k.kkkk.k..', '.kk..kk..kk.', '.k.k.kk.k.k.', '.kkkkkkkkkk.', '.k.k.kk.k.k.', '.kk..kk..kk.', '..k.kkkk.k..', '...kkkkkk...', '..k......k..', '.k........k.', 'kkkkkkkkkkkk'],
+    car: ['............', '............', '...kkkkkk...', '..kssllsk...', '.kkkkkkkkkk.', 'krrrrrrrrrrk', 'kryyrrrryyrk', 'krrrrrrrrrrk', 'kkkkkkkkkkkk', '.khk....khk.', '..k......k..', '............'],
+    cat: ['............', '.k......k...', '.kk....kk...', '.kooooook...', 'kooooooook..', 'kowoooowok..', 'koooppoook..', '.koooooook.k', '..koooooookk', '..kooooook..', '..kk.kk.kk..', '............'],
     news: ['............', '.kkkkkkkkk..', '.kwwwwwwwkk.', '.kwkkkkkwkwk', '.kwkhhhkwkwk', '.kwkkkkkwkwk', '.kwwwwwwwkwk', '.kwhhhwhhkwk', '.kwwwwwwwkwk', '.kwhhwhhhkk.', '.kkkkkkkkk..', '............'],
     police: ['............', '...kkkkkk...', '..kttttttk..', '.kttttyttkk.', '.kttyyyyttk.', 'kkkkkkkkkkkk', '.kddddddddk.', '..kkkkkkkk..', '....kyyk....', '...kyyyyk...', '....kyyk....', '.....kk.....'],
     bird: ['............', '......kkk...', '.....khhhk..', '.....khkhyk.', '..kkkkhhhkk.', '.khhhhhhhk..', 'khhgggghhk..', 'khhhgggghk..', '.kkhhhhhk...', '...kykyk....', '...kk.kk....', '............'],

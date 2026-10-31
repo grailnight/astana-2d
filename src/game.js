@@ -171,6 +171,9 @@ const G = {
     Life.onNewDay();
     City.onNewDay();
     Fun.onNewDay();
+    Lives.onNewDay();
+    Pet.onNewDay();
+    Dreams.onNewDay();
     Day.onNewDay();
     this.events.push(() => Quests.onNewDay());
   },

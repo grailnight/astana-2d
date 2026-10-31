@@ -33,6 +33,8 @@ const ITEMS = {
   sketchbook: { name: 'Скетчбук', desc: 'Подарок для того, кто рисует', gift: true },
   film: { name: 'Фотоплёнка', desc: 'Подарок для фотографа', gift: true },
   book: { name: 'Книга «Абай жолы»', desc: 'Роман Мухтара Ауэзова — подарок для читателя', gift: true },
+  catfood: { name: 'Корм для котёнка', desc: 'Пакетик паштета — котёнку на день' },
+  coupon: { name: 'Купон «Шаурма №1»', desc: 'Шаурма за полцены' },
   ring: { name: 'Кольцо', desc: 'Для предложения руки и сердца', key: true },
   laptop: { name: 'Ноутбук', desc: 'Можно учить код дома', key: true },
   scooter: { name: 'Электросамокат', desc: 'Скорость передвижения +55%', key: true },
@@ -373,9 +375,15 @@ const Content = (() => {
   const worldNpcs = [
     {
       id: 'kid', tx: 21, ty: 22,
-      visible: () => G.flag('catQuest') !== 'done' && G.hour() >= 9 && G.hour() < 20 && Quests.status('arrival') === 'done',
+      visible: () => (G.flag('catQuest') !== 'done' || Lives.kittensNow()) && G.hour() >= 9 && G.hour() < 20 && Quests.status('arrival') === 'done',
       talk: async () => {
         const q = G.flag('catQuest');
+        if (q === 'done' && Lives.kittensNow()) {
+          const c = await ask('kid', 'Это котята Барсика! Их пятеро, а мама говорит — оставить можно только одного. Возьмёте рыженького? Он самый смелый!', ['Беру!', 'Пока не могу']);
+          if (c === 0) await Pet.adopt('ginger', 'aruzhan');
+          else await say('kid', 'Ладно… Но если передумаете — я тут, у подъезда!');
+          return;
+        }
         if (!q) {
           await say('kid', `${gx('Ағай', 'Апай')}, сіз мысықты көрдіңіз бе? Ой… Вы не видели кота? Рыжий, Барсик зовут. Он убежал в Центральный парк, к югу от Кенесары!`);
           G.flag('catQuest', 'asked');
@@ -510,12 +518,13 @@ const Content = (() => {
 
   async function taxi(b) {
     const q = taxiQuote(b);
-    const c = await ask(null, `Такси до «${b.name}»: ${fmtMoney(q.cost)}, около ${q.mins} мин.`, ['Поехали', 'Отмена']);
+    const car = !!s().flags.car;
+    const c = await ask(null, car ? `Своя машина до «${b.name}»: около ${Math.round(q.mins * 0.7)} мин, бесплатно.` : `Такси до «${b.name}»: ${fmtMoney(q.cost)}, около ${q.mins} мин.`, ['Поехали', 'Отмена']);
     if (c !== 0) return false;
-    if (!G.pay(q.cost)) return false;
+    if (!car && !G.pay(q.cost)) return false;
     UI.closeAll();
-    await UI.fade('Такси везёт тебя по городу…', async () => {
-      G.advance(q.mins);
+    await UI.fade(car ? 'Ты едешь на своей машине. Радио играет домбру, на светофоре кто-то сигналит — это Даурен машет из соседней полосы…' : 'Такси везёт тебя по городу…', async () => {
+      G.advance(car ? Math.round(q.mins * 0.7) : q.mins);
       Ents.placePlayer(b.doorX, b.doorY + 1);
       Ents.player.dir = 3;
     });
@@ -748,6 +757,7 @@ const Content = (() => {
     if (c !== 0) return;
     st.money -= price;
     st.flags.ownFlat = true;
+    Dreams.placeCar();
     st.homeId = 'realty';
     st.rent.locked = false;
     Sfx.play('success');
@@ -797,6 +807,7 @@ const Content = (() => {
         buyItem('chocolate', 450),
         buyItem('baursak', 1200),
         City.buyPaper(),
+        { label: 'Корм для котёнка ×3', price: 1200, time: 5, icon: 'cat', sub: Pet.has() ? `для ${s().pet.name}` : 'на всякий случай', run: async () => { if (!G.pay(1200)) return; G.give('catfood', 3); UI.toast('Корм для котёнка ×3', 'good'); } },
       ],
     },
     market: {
@@ -814,7 +825,10 @@ const Content = (() => {
       name: 'Шаурма №1', kz: 'Шаурма', hours: [10, 24], tone: 'food',
       desc: () => 'Тесная забегаловка с лучшей шаурмой на правом берегу. По вечерам здесь Даурен.',
       npcs: () => (G.hour() >= 18 ? ['dauren'] : []),
-      actions: () => [buyFood('Шаурма', 1600, 45, 3), buyFood('Лагман', 2200, 55, 5, 0, 30), buyFood('Шай с баурсаками', 900, 18, 6, 4, 20)],
+      actions: () => [
+        buyFood('Шаурма', 1600, 45, 3), buyFood('Лагман', 2200, 55, 5, 0, 30), buyFood('Шай с баурсаками', 900, 18, 6, 4, 20),
+        ...(G.has('coupon') ? [{ label: 'Шаурма по купону', price: 800, time: 20, icon: 'bowl', sub: 'сытость +45 · полцены', run: async () => { if (!G.pay(800)) return; G.take('coupon'); G.advance(20); G.add('food', 45); G.add('mood', 4); UI.toast('Шаурма за полцены — вкуснее вдвойне', 'good'); } }] : []),
+      ],
     },
     lang: {
       name: 'Тілдер орталығы', kz: 'Языковой центр', hours: [9, 20], tone: 'study',
@@ -1060,6 +1074,8 @@ const Content = (() => {
         buyItem('sketchbook', 3500), buyItem('film', 4000), buyItem('book', 4500), buyItem('ring', 180000),
         buyFood('Фудкорт', 2400, 50, 3, 0, 30), buyCloth('beanie', 3500),
         Decor.shopAction(),
+        Dreams.carAction(),
+        { label: 'Приют «Мысық»: взять котёнка', price: 2000, time: 20, icon: 'cat', sub: 'взнос на корм для приюта', disabled: Pet.has() ? 'котёнок уже есть' : null, run: async () => { if (!G.pay(2000)) return; G.advance(20); await say(null, 'Волонтёр приводит тебя к вольеру. Один котёнок сразу цепляется лапой за твой рукав — выбор сделан за тебя.'); await Pet.adopt(pick(['grey', 'black', 'calico', 'ginger']), 'shelter'); } },
       ],
     },
     station1: {
@@ -1068,6 +1084,7 @@ const Content = (() => {
       actions: () => [
         buyFood('Беляш', 400, 15, 1, 0, 10),
         buyFood('Чай из термоса у бабушки', 200, 4, 3, 4, 5),
+        Dreams.meetMamaAction(), Dreams.ticketAction(),
         City.buyPaper(),
         { label: 'Помахать уходящему поезду', icon: 'hand', time: 5, sub: 'чудачество · настроение +3', run: async () => { G.advance(5); await say(null, `Ты машешь вслед поезду, как в кино. Проводница из последнего вагона машет в ответ. Ты никого не ${gx('провожал', 'провожала')}, но стало тепло.`); Fun.absurd('train', 1, 3); } },
         { label: 'Умыться в туалете вокзала', price: 100, time: 10, icon: 'drop', sub: 'гигиена +25', run: async () => { if (!G.pay(100)) return; G.advance(10); G.add('hyg', 25); } },

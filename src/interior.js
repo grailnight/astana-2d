@@ -451,6 +451,7 @@ const Inside = (() => {
       const p = Ents.player;
       p.x = def.door * TILE + 8; p.y = (def.H - 2) * TILE + 12; p.dir = 3; p.moving = false;
       Render.snap();
+      Pet.enter(def);
     });
     return true;
   }
@@ -488,6 +489,8 @@ const Inside = (() => {
     }
     for (const n of cur.def.npcs()) out.push({ y: n.y * TILE, npc: n });
     for (const gs of cur.guests) out.push({ y: gs.y * TILE - 1, guest: gs });
+    const pd = Pet.drawable();
+    if (pd) out.push(pd);
     return out;
   }
 
@@ -507,7 +510,10 @@ const Inside = (() => {
     tea: () => [{
       label: 'Попить шай', time: 15, icon: 'cup', sub: 'настроение +4 · энергия +3',
       run: async () => { G.advance(15); G.add('mood', 4); G.add('energy', 3); UI.toast('Горячий шай с молоком — как дома', 'good'); },
-    }],
+    }, ...(cur && cur.id === 'home' && G.s.flags.baursakDay === G.s.day && !G.s.daily.grandBaursak ? [{
+      label: 'Угоститься баурсаками', time: 10, icon: 'bowl', sub: 'сытость +25 · от Гульнар-апай',
+      run: async () => { G.s.daily.grandBaursak = true; G.advance(10); G.add('food', 25); G.add('mood', 5); UI.toast('Баурсаки ещё тёплые. Внук Гульнар-апай машет тебе из комнаты.', 'good'); },
+    }] : [])],
     decor: () => Decor.homeActs(),
     rest: () => [{
       label: 'Отдохнуть за столиком', time: 30, icon: 'clock', sub: 'энергия +5 · настроение +3',
@@ -535,6 +541,8 @@ const Inside = (() => {
     const p = Ents.player;
     const fx = p.x, fy = p.y - 4;
     const out = [];
+    const pi = Pet.interactable(fx, fy);
+    if (pi) out.push(pi);
     for (const n of cur.def.npcs()) {
       const x = n.x * TILE, y = n.y * TILE;
       const d = Math.hypot(fx - x, fy - y + 4);
@@ -556,6 +564,7 @@ const Inside = (() => {
   function update(dt) {
     const p = Ents.player;
     if (p.y > (cur.def.H - 1) * TILE + 9) { leave(); return; }
+    Pet.update(dt);
     hoursTimer -= dt;
     if (hoursTimer <= 0) {
       hoursTimer = 1;
@@ -579,5 +588,7 @@ const Inside = (() => {
     return cv;
   }
 
-  return { enter, leave, active, locId, room, outsidePos, background, drawables, interactables, update, roomFor, refresh, furniture, wallPreview, ROOMS };
+  const solidAt = (tx, ty) => (cur ? solid(tx, ty) : true);
+
+  return { enter, leave, active, locId, room, outsidePos, background, drawables, interactables, update, roomFor, refresh, furniture, wallPreview, solidAt, ROOMS };
 })();

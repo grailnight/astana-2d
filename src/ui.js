@@ -312,8 +312,9 @@ const UI = (() => {
     const [a, b] = Content.locHours(locId);
     const hours = a === 0 && b === 24 ? 'круглосуточно' : `${fmtClock(a * 60)}–${fmtClock((b % 24) * 60)}`;
     const o = locOpts;
-    const npcs = o.compact ? [] : (L.npcs ? L.npcs() : []).filter((n) => !(n === 'gulnar' && s.homeId !== 'home'));
+    const npcs = o.compact ? [] : [...new Set([...(L.npcs ? L.npcs() : []), ...Lives.extraNpcs(locId)])].filter((n) => !(n === 'gulnar' && s.homeId !== 'home'));
     let acts = L.actions().filter(Boolean);
+    if (!o.compact) acts = [...Lives.locActions(locId), ...acts];
     if (o.only) acts = acts.filter((x) => o.only.test(x.label));
     if (o.extra) acts = acts.concat(o.extra());
     locEl.style.setProperty('--tone', TONES[L.tone] || '#2ec4e6');
@@ -439,7 +440,7 @@ const UI = (() => {
 
   const APPS = [
     ['quests', 'quest', 'Задания'], ['msgs', 'mail', 'Сообщения'], ['map', 'map', 'Карта'], ['contacts', 'phone', 'Контакты'],
-    ['bag', 'bag', 'Сумка'], ['me', 'person', 'Профиль'], ['medals', 'medal', 'Медали'], ['settings', 'gear', 'Настройки'],
+    ['bag', 'bag', 'Сумка'], ['me', 'person', 'Профиль'], ['dreams', 'star', 'Мечты'], ['medals', 'medal', 'Медали'], ['settings', 'gear', 'Настройки'],
   ];
   let phoneApp = null;
 
@@ -544,6 +545,7 @@ const UI = (() => {
         <h3>Репутация</h3><div class="stats"><div><span>Нарушения</span>${bar(s.crime || 0, 100)}<em>${escapeHtml(City.crimeLabel())}</em></div><div><span>Чудачество</span>${bar(s.crazy || 0, 100)}<em>${escapeHtml(Fun.crazyLabel())}</em></div><div><span>Уют дома</span>${bar(Decor.comfort(), 100)}<em>${Decor.comfort()}/100</em></div></div>
         <h3>Жильё</h3><p class="note">${s.flags.ownFlat ? 'Своя квартира на левом берегу.' : `Комната у Гульнар-апай. Аренда ${fmtMoney(s.rent.amount)} — оплачено до конца дня ${s.rent.due}.${s.rent.locked ? ' Комната закрыта за долг!' : ''}`}</p>`;
     }
+    if (tab === 'dreams') return Dreams.phoneHtml();
     if (tab === 'medals') {
       const got = s.medals;
       const cards = Life.CARDS;
@@ -577,6 +579,8 @@ const UI = (() => {
     const tr = t.closest('[data-track]');
     if (tr) { G.s.track = tr.dataset.track; Sfx.play('click'); renderPhone(); return; }
     if (t.closest('[data-paper]')) { Sfx.play('click'); closePhone(); City.openPaper(); return; }
+    const dr = t.closest('[data-dream]');
+    if (dr) { Sfx.play('click'); Dreams.track(dr.dataset.dream); renderPhone(); return; }
     const call = t.closest('[data-call]');
     if (call) { await Content.call(call.dataset.call); Quests.tick(); renderPhone(); return; }
     const eat = t.closest('[data-eat]');

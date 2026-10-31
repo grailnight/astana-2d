@@ -56,6 +56,8 @@ const Main = (() => {
       const d = dist(fx, fy, ped.x, ped.y - 4);
       if (d < 16) out.push({ pri: 4, d, label: ped.police ? 'Заговорить с патрульным' : 'Заговорить с прохожим', x: ped.x, y: ped.y - 34, run: () => Fun.pedMenu(ped, pedTalk) });
     }
+    const ev = Events.interactable(fx, fy);
+    if (ev) out.push(ev);
     const flock = City.flockNear(fx, fy);
     if (flock) out.push({ pri: 3, d: dist(fx, fy, flock.x, flock.y), label: 'Голуби', btn: ['ГОЛУБИ', 'bird'], x: flock.x, y: flock.y - 14, run: () => Fun.pigeonsMenu(City.feedPigeons(Render.now())) });
     Fun.street(fx, fy, out);
@@ -112,6 +114,7 @@ const Main = (() => {
     Ents.updatePeds(dt);
     Ents.updateCars(dt, (c) => { if (chance(0.5)) Sfx.play('honk'); });
     City.updatePigeons(dt, Render.now());
+    Events.update(dt);
     const stop = City.patrol(dt);
     if (stop) { runEvent(stop); return; }
     questTimer -= dt;
@@ -163,6 +166,7 @@ const Main = (() => {
     Ents.player.dir = s.pos.dir || 0;
     Ents.spawnPeds(42, G.season() === 'winter');
     Ents.spawnCars(26);
+    Dreams.placeCar();
     document.getElementById('hud').hidden = false;
     playing = true;
     Device.keepAwake();

@@ -113,7 +113,7 @@ const Social = (() => {
         if (dater && ((st.rel[id] || 0) >= 50 || l.partner === id)) out.push({ k: 'date', label: 'Позвать на свидание', icon: 'ticket', disabled: Romance.canDateNow() ? null : 'вечером или в выходные' });
         if (dater && (st.rel[id] || 0) >= 70 && !l.partner && (l.dates[id] || 0) >= 2) out.push({ k: 'confess', label: 'Признаться в чувствах', icon: 'heart' });
         if (dater && l.partner === id && !l.engaged && (st.rel[id] || 0) >= 90) out.push({ k: 'propose', label: 'Сделать предложение', icon: 'ring', disabled: !st.flags.ownFlat ? 'нужна своя квартира' : !G.has('ring') ? 'нужно кольцо' : null });
-        for (const x of opts.extra || []) out.push(Object.assign({ k: 'extra' }, x));
+        for (const x of [...(opts.extra || []), ...Lives.socialExtras(id), ...Dreams.socialExtras(id)]) out.push(Object.assign({ k: 'extra' }, x));
         out.push({ k: 'bye', label: 'Попрощаться', icon: 'hand' });
         return out;
       }

@@ -121,6 +121,7 @@ const Decor = (() => {
       if (CATALOG[id].plant && wilted(room, key)) continue;
       c += CATALOG[id].comfort;
     }
+    if (room === homeRoom()) c += Pet.comfort();
     return Math.min(100, c);
   }
 

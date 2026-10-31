@@ -127,6 +127,7 @@ const Render = (() => {
     for (const c of Ents.cars) if (c.x > vx0 && c.x < vx1 && c.y > vy0 && c.y < vy1) list.push({ y: c.y + 6, car: c });
     for (const n of Content.worldNpcs) if (n.visible()) list.push({ y: n.ty * TILE + 12, npc: n });
     for (const pg of City.pigeons) if (pg.away <= 0 && pg.x > vx0 && pg.x < vx1 && pg.y > vy0 && pg.y < vy1) list.push({ y: pg.y, pig: pg });
+    for (const e of Events.drawables(vx0, vx1, vy0, vy1)) list.push(e);
     for (const sm of Fun.snowmen()) { const x = sm.tx * TILE + 8, y = sm.ty * TILE + 12; if (x > vx0 && x < vx1 && y > vy0 && y < vy1) list.push({ y, snowman: sm }); }
     list.push({ y: p.y, player: true });
     list.sort((a, b) => a.y - b.y);
@@ -146,6 +147,8 @@ const Render = (() => {
       } else if (it.car) drawCar(it.car);
       else if (it.pig) drawPigeon(it.pig);
       else if (it.snowman) drawSnowman(it.snowman);
+      else if (it.evActor) { const a = it.evActor; drawChar(a.sheet, a.x, a.y, a.dir || 0, !!a.moving, a.anim || 0); }
+      else if (it.evObj) drawEvObj(it);
       else if (it.npc) {
         const n = it.npc;
         const sheet = n.sheet || (n.sheet = Art.charSheet(NPCS[n.id].look));
@@ -176,6 +179,22 @@ const Render = (() => {
     drawLabels(info);
     drawMarkers(info);
     drawCold();
+  }
+
+  // Предметы случайных событий: кошелёк, котёнок на дереве, чехол музыканта
+  function drawEvObj(it) {
+    const u = charK();
+    const X = sx(it.x), Y = sy(it.yy);
+    const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(X + x * u), Math.round(Y + y * u), w * u, h * u); };
+    if (it.evObj === 'wallet') {
+      R(-5, -5, 10, 6, '#5e3b22'); R(-5, -5, 10, 2, '#7a4a2a'); R(2, -3, 2, 2, '#f2c14e');
+      if ((time * 2) % 2 < 0.6) { R(5, -10, 1, 3, '#f6c343'); R(4, -9, 3, 1, '#f6c343'); }
+    } else if (it.evObj === 'cat') {
+      const img = Art.cat();
+      blit(img, it.x - 6, it.yy - 34 + (Math.sin(time * 6) > 0.95 ? -1 : 0), 12, 10);
+    } else if (it.evObj === 'case') {
+      R(-7, -4, 14, 5, '#3a2c24'); R(-6, -3, 12, 3, '#7a1f1f'); R(-3, -3, 2, 1, '#f2c14e'); R(1, -2, 2, 1, '#d6dde3'); R(3, -3, 1, 1, '#f2c14e');
+    }
   }
 
   // Снеговик игрока: три кома, морковка, руки-ветки и шапка
@@ -270,6 +289,7 @@ const Render = (() => {
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     }
     drawGrade();
+    for (const it of list) if (it.say) bubble(it.say, it.sayX, it.sayY);
     for (const it of list) if (it.npc) {
       const n = it.npc;
       plate(NPCS[n.id].name, n.x * TILE, n.y * TILE - 38, { size: 3.4, bg: 'rgba(19,40,58,0.85)', color: '#eef6fa', border: false });
@@ -653,6 +673,8 @@ const Render = (() => {
       if (n.id !== 'dombra') { const by = y - 40 + Math.sin(time * 4) * 1.5; plate('!', x, by, { size: 4.4, bg: '#f6c343', color: '#13283a', border: false, weight: 800 }); }
     }
     for (const ped of Ents.peds) if (ped.bubble && ped.bubble.until > time) bubble(ped.bubble.text, ped.x, ped.y - 26);
+    const em = Events.marker();
+    if (em) plate('!', em.x, em.y + Math.sin(time * 4) * 1.5, { size: 4.6, bg: '#f6c343', color: '#13283a', border: false, weight: 800 });
     if (info && info.near && info.near.label) {
       const n = info.near;
       const bob = Math.sin(time * 5) * 1.2;

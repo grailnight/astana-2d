@@ -143,6 +143,13 @@ const Life = (() => {
     { id: 'weird', tier: 'bronze', name: 'Городской чудак', desc: '15 странных поступков', check: (st) => (st.stats.absurd || 0) >= 15 },
     { id: 'legend', tier: 'gold', name: 'Легенда Астаны', desc: 'Чудачество 75 и выше', check: (st) => (st.crazy || 0) >= 75 },
     { id: 'lick', tier: 'bronze', name: 'Примёрз', desc: 'Лизнуть столб на морозе', check: (st) => !!(st.fun && st.fun.licked) },
+    { id: 'pet', tier: 'silver', name: 'Пушистый друг', desc: 'Котёнок счастлив (80+)', check: (st) => !!(st.pet && st.pet.happy >= 80) },
+    { id: 'mama', tier: 'gold', name: 'Мама гордится', desc: 'Привезти маму в Астану', check: (st) => !!st.flags.mamaVisited },
+    { id: 'car', tier: 'silver', name: 'Свой руль', desc: 'Купить машину', check: (st) => !!st.flags.car },
+    { id: 'coffee', tier: 'gold', name: 'Совладелец', desc: 'Открыть кофейню вместе с Айгерим', check: (st) => !!(st.flags.coffeeShare && st.flags.coffeeOpen) },
+    { id: 'dreamer', tier: 'gold', name: 'Мечты сбываются', desc: 'Пять сбывшихся мечт', check: () => Dreams.doneCount() >= 5 },
+    { id: 'helper', tier: 'bronze', name: 'Добрый горожанин', desc: 'Помочь на улице 5 раз', check: (st) => !!(st.events && st.events.helped >= 5) },
+    { id: 'bdays', tier: 'bronze', name: 'Помню о друзьях', desc: 'Поздравить троих с днём рождения', check: (st) => !!(st.lives && Object.keys(st.lives.bday).length >= 3) },
     { id: 'snow', tier: 'silver', name: 'Снеговик-мастер', desc: 'Слепить 5 снеговиков', check: (st) => !!(st.fun && st.fun.made >= 5) },
   ];
   function checkMedals() {

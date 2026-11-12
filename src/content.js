@@ -28,7 +28,7 @@ const ITEMS = {
   kazy: { name: 'Казы', desc: 'Конская колбаса, праздничная еда', food: 35, mood: 6 },
   kumys: { name: 'Кумыс', desc: 'Кобылье молоко, бодрит', food: 10, mood: 8, energy: 6 },
   samsa: { name: 'Самса', desc: 'Из тандыра, с мясом', food: 22, mood: 2 },
-  chocolate: { name: 'Шоколад «Казахстан»', desc: 'Тот самый, с синей обёрткой', food: 8, mood: 8, gift: true },
+  chocolate: { name: 'Шоколад «Жайлау»', desc: 'Молочный, в синей обёртке', food: 8, mood: 8, gift: true },
   flowers: { name: 'Цветы', desc: 'Подарок — укрепляет отношения', gift: true },
   sketchbook: { name: 'Скетчбук', desc: 'Подарок для того, кто рисует', gift: true },
   film: { name: 'Фотоплёнка', desc: 'Подарок для фотографа', gift: true },

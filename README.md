@@ -29,14 +29,18 @@ node tools/build.mjs          # → dist/astana.html
 
 Установка: скачай APK на телефон, открой его и разреши установку из этого источника. Play Защита может предупредить о неизвестном разработчике — это нормально для APK не из магазина, нажми «Всё равно установить».
 
-Сборка без Gradle, нужны JDK 17+ и Android SDK (`platforms;android-35`, `build-tools;35.0.0`):
+Сборка без Gradle, нужны JDK 17+ и Android SDK (`platforms;android-36`, `build-tools;36.0.0`):
 
 ```bash
-sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-35" "build-tools;35.0.0"
+sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-36" "build-tools;36.0.0"
 ANDROID_SDK=$HOME/android-sdk tools/build-apk.sh
 ```
 
 APK подписывается ключом `android/astana.keystore` (пароль `astana-game`). Это ключ любительской сборки: он лежит в репозитории, чтобы новые версии ставились поверх старых и сохранения не терялись. Для публикации в магазине нужен свой закрытый ключ.
+
+### Google Play
+
+`tools/build-apk.sh aab` собирает `dist/astana.aab` для магазина и подписывает его твоим ключом загрузки, который хранится вне репозитория. Тексты описания, скриншоты, обложка и пошаговая инструкция — в папке [`store/`](store/README.md), политика конфиденциальности — в `privacy.html`.
 
 ### Как веб-приложение
 

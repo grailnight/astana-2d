@@ -17,6 +17,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.window.OnBackInvokedDispatcher;
 
 // Игра живёт в WebView: файлы лежат в assets/www, сохранения — в localStorage.
 public class MainActivity extends Activity {
@@ -47,8 +49,29 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        setContentView(web);
+        // С Android 15 окно всегда растянуто под вырез камеры: держим игру в безопасной области,
+        // а поля закрашиваем цветом фона.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFF0D1B2A);
+        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets c = insets.getInsets(WindowInsets.Type.displayCutout());
+                v.setPadding(c.left, c.top, c.right, c.bottom);
+            } else if (Build.VERSION.SDK_INT >= 28 && insets.getDisplayCutout() != null) {
+                android.view.DisplayCutout c = insets.getDisplayCutout();
+                v.setPadding(c.getSafeInsetLeft(), c.getSafeInsetTop(), c.getSafeInsetRight(), c.getSafeInsetBottom());
+            } else {
+                v.setPadding(0, 0, 0, 0);
+            }
+            return insets;
+        });
+        setContentView(root);
         hideSystemBars();
+        // С Android 16 система больше не вызывает onBackPressed — подписываемся на жест «Назад» сами
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
+        }
 
         if (state != null) web.restoreState(state);
         if (web.getUrl() == null) web.loadUrl("file:///android_asset/www/index.html");
@@ -97,6 +120,10 @@ public class MainActivity extends Activity {
     // «Назад» сначала закрывает окна в игре; если закрывать нечего — сворачивает приложение
     @Override
     public void onBackPressed() {
+        handleBack();
+    }
+
+    private void handleBack() {
         web.evaluateJavascript("(window.__back && window.__back()) ? 'y' : 'n'", value -> {
             if (value == null || !value.contains("y")) moveTaskToBack(true);
         });

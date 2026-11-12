@@ -407,6 +407,13 @@ const UI = (() => {
 
   function closePhone() { if (phoneEl) { popModal(phoneEl); phoneEl = null; phoneApp = null; } }
   function closeAll() { closeLocation(); closePhone(); }
+  // аварийная очистка после ошибки в сцене: закрыть все окна и затемнение
+  function dropAll() {
+    closeAll();
+    while (modals.length) popModal(modals[modals.length - 1]);
+    const f = $('#fade');
+    if (f) f.classList.remove('on');
+  }
 
   /* ---------- гардероб ---------- */
 
@@ -561,6 +568,9 @@ const UI = (() => {
         ${Device.touch() ? `<div class="set-row"><span>Вибрация</span>${tog(Device.prefs.vibrate, 'data-vib')}</div>` : ''}
         ${Device.canFullscreen() ? `<div class="set-row"><span>Полный экран</span>${tog(Device.isFullscreen(), 'data-fs')}</div>` : ''}
         <div class="set-row"><span>Сохранить игру</span><button class="btn small fx-btn" data-save>Сохранить</button></div>
+        <div class="set-row"><span>Перенос сохранения</span><span class="set-btns"><button class="btn small fx-btn" data-export>Код</button><button class="btn small fx-btn" data-import>Загрузить</button></span></div>
+        ${Backup.get() ? `<div class="set-row"><span>Резервная копия<small>${escapeHtml(Backup.label())}</small></span><button class="btn small fx-btn" data-restore>Вернуть</button></div>` : ''}
+        ${Backup.errors().length ? `<div class="set-row"><span>Журнал ошибок · ${Backup.errors().length}</span><button class="btn small fx-btn" data-errors>Открыть</button></div>` : ''}
         <div class="set-row"><span>Начать заново</span><button class="btn small fx-red" data-reset>Новая игра</button></div>
         <h3>Управление</h3>
         <p class="note">Клавиатура: WASD или стрелки — ходить, E / пробел — действие, Tab или Q — телефон, M — карта, Esc — закрыть.<br>Телефон: левая часть экрана — джойстик, кнопка справа — действие.</p>`;
@@ -568,7 +578,7 @@ const UI = (() => {
     return '';
   }
 
-  let resetArm = false;
+  let resetArm = false, restoreArm = false;
   async function onPhoneClick(e) {
     if (topModal() !== phoneEl) return;
     const t = e.target;
@@ -590,6 +600,15 @@ const UI = (() => {
     if (t.closest('[data-save]')) { G.save(); toast('Игра сохранена', 'good'); return; }
     if (t.closest('[data-vib]')) { Device.setPref('vibrate', !Device.prefs.vibrate); Device.buzz(30); renderPhone(); return; }
     if (t.closest('[data-fs]')) { if (!await Device.toggleFullscreen()) toast('Браузер не разрешил полный экран. Добавь игру на главный экран — там она открывается без рамок.', 'info'); setTimeout(() => phoneEl && renderPhone(), 300); return; }
+    if (t.closest('[data-export]')) { Sfx.play('click'); await Backup.exportDialog(); return; }
+    if (t.closest('[data-import]')) { Sfx.play('click'); if (await Backup.importDialog()) { G.freeze(); location.reload(); } return; }
+    if (t.closest('[data-errors]')) { Sfx.play('click'); await Backup.errorsDialog(); if (phoneEl) renderPhone(); return; }
+    const rb = t.closest('[data-restore]');
+    if (rb) {
+      if (!restoreArm) { restoreArm = true; rb.textContent = 'Точно?'; setTimeout(() => { restoreArm = false; }, 3000); return; }
+      if (Backup.restore()) { G.freeze(); location.reload(); } else toast('Не получилось вернуть копию', 'bad');
+      return;
+    }
     const rs = t.closest('[data-reset]');
     if (rs) {
       if (!resetArm) { resetArm = true; rs.textContent = 'Точно?'; setTimeout(() => { resetArm = false; }, 3000); return; }
@@ -694,6 +713,7 @@ const UI = (() => {
             ${hasSave ? `<button class="btn big fx-gold" data-go="load">${UIKit.img('door')}Продолжить</button>` : ''}
             <button class="btn big ${hasSave ? 'fx-btn' : 'fx-gold'}" data-go="new">${UIKit.img('star')}Новая игра</button>
             ${Device.touch() && Device.canFullscreen() && !Device.isFullscreen() ? '<button class="btn fx-tile" data-fs>На весь экран</button>' : ''}
+            <button class="btn fx-tile" data-go="import">Загрузить из кода</button>
           </div>
         </div></div>`);
       pushModal(el);
@@ -819,7 +839,7 @@ const UI = (() => {
   }
 
   return {
-    say, ask, toast, banner, fade, initHud, updateHud, hint, openLocation, closeLocation, refreshLocation, currentLoc, closeAll,
+    say, ask, toast, banner, fade, initHud, updateHud, hint, openLocation, closeLocation, refreshLocation, currentLoc, closeAll, dropAll,
     wardrobe, openPhone, title, creator, ending, pushModal, popModal, blocking, topModal, drawMap, escape, back, relLabel, toneOf,
   };
 })();

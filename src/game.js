@@ -53,21 +53,34 @@ const G = {
   },
 
   save() {
-    if (!this.s) return;
+    if (!this.s || this.frozen) return;
     const p = Ents.player;
     // в помещении сохраняем позицию у двери на улице
     this.s.pos = (typeof Inside !== 'undefined' && Inside.outsidePos()) || { x: p.x / TILE, y: p.y / TILE, dir: p.dir };
-    Store.set(SAVE_KEY, this.s);
+    Backup.keep(this.s);
+    const ok = Store.set(SAVE_KEY, this.s);
+    if (!ok && !this.saveWarned) { this.saveWarned = true; UI.toast('Не получается сохранить игру: память устройства недоступна или переполнена. Сделай копию в Настройках → «Перенос сохранения».', 'bad'); }
+    return ok;
   },
-  hasSave() { return !!Store.get(SAVE_KEY); },
+  hasSave() { return Backup.valid(Store.get(SAVE_KEY)) || !!Backup.get(); },
   load(data) {
-    const d = data || Store.get(SAVE_KEY);
+    let d = data || Store.get(SAVE_KEY);
+    // основное сохранение повреждено — берём резервную копию
+    if (!data && !Backup.valid(d)) { d = Backup.get(); if (d) this.events.push(async () => UI.toast('Основное сохранение не найдено — загружена резервная копия.', 'info')); }
     if (!d || d.v !== 1) return false;
-    this.s = Object.assign(this.newState({ name: d.name, base: d.base, sportColor: d.sportColor }), d);
+    const def = this.newState({ name: d.name, base: d.base, sportColor: d.sportColor });
+    this.s = Object.assign({}, def, d);
+    // вложенные разделы дополняем полями, которых не было в старых версиях игры
+    for (const k of ['xp', 'rel', 'stats', 'clothes', 'job', 'rent', 'love']) {
+      if (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) this.s[k] = Object.assign({}, def[k], d[k]);
+      else this.s[k] = def[k];
+    }
     this.groundDirty = true;
     return true;
   },
-  wipe() { Store.del(SAVE_KEY); },
+  // перед перезагрузкой страницы: текущая игра не должна затереть только что загруженное сохранение
+  freeze() { this.frozen = true; },
+  wipe() { this.freeze(); Store.del(SAVE_KEY); },
 
   /* ---------- время ---------- */
   now() { return this.s.day * 1440 + this.s.min; },

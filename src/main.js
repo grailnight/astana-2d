@@ -93,7 +93,13 @@ const Main = (() => {
 
   async function runEvent(fn) {
     eventRunning = true;
-    try { await fn(); } catch (e) { console.error(e); }
+    try { await fn(); } catch (e) {
+      console.error(e);
+      // сцена оборвалась: убираем зависшие окна, чтобы игрок не застрял, и записываем ошибку
+      UI.dropAll();
+      if (G.s) { G.s.flags.fainting = false; G.save(); }
+      Backup.note(e, 'event');
+    }
     eventRunning = false;
     Quests.tick();
   }
@@ -204,7 +210,11 @@ const Main = (() => {
     UI.initHud();
     requestAnimationFrame(loop);
     if (data && data.save && G.load(data.save)) { startPlay(false); return; }
-    const choice = await UI.title(G.hasSave());
+    let choice = await UI.title(G.hasSave());
+    while (choice === 'import') {
+      if (await Backup.importDialog()) { choice = 'load'; break; }
+      choice = await UI.title(G.hasSave());
+    }
     if (choice === 'load' && G.load()) { startPlay(false); return; }
     const prof = await UI.creator();
     G.start(prof);

@@ -1,0 +1,12 @@
+{
+  "name": "astana-zhana-omir-roblox",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "node tools/test.mjs"
+  },
+  "devDependencies": {
+    "luau-web": "1.5.1"
+  }
+}

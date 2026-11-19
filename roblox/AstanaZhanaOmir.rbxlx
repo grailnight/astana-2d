@@ -1488,6 +1488,10 @@ function actions.kazLesson(player, session)
 	send(player)
 	local correct = quiz(player, "Урок казахского", Config.LESSON_QUESTIONS, Questions.kaz)
 	if correct == nil then
+		-- закрыл урок на первом вопросе: возвращаем деньги и силы
+		state.money += Config.KAZ_LESSON_PRICE
+		state.energy = math.min(100, state.energy + 10)
+		toast(player, "Урок отменён, деньги возвращены.")
 		return
 	end
 	local before = Logic.level(state.kazXp)
@@ -1504,6 +1508,7 @@ local function study(player: Player, session: Session, xp: number)
 	end
 	local correct = quiz(player, "Основы программирования", Config.LESSON_QUESTIONS, Questions.code)
 	if correct == nil then
+		state.energy = math.min(100, state.energy + 12)
 		return
 	end
 	local before = Logic.level(state.codeXp)
@@ -1547,6 +1552,10 @@ function actions.courier(player, session)
 		if distance >= Config.COURIER_MIN_DISTANCE then
 			table.insert(candidates, { address = address, distance = distance })
 		end
+	end
+	if #candidates == 0 then
+		say(player, "Даурен", "Заказов пока нет. Загляни чуть позже.")
+		return
 	end
 	local pick = candidates[rng:NextInteger(1, #candidates)]
 	local pay = Logic.courierPay(pick.distance)

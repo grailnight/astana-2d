@@ -4,8 +4,9 @@
 
 local Config = {}
 
-Config.SAVE_VERSION = 1
+Config.SAVE_VERSION = 2
 Config.DATASTORE = "AstanaZhanaOmir_v1"
+Config.LOCK_SECONDS = 300 -- чужая блокировка сохранения считается брошенной через 5 минут
 
 -- Время: одна игровая минута длится 0.5 секунды, сутки — 12 минут.
 Config.SECONDS_PER_GAME_MINUTE = 0.5
@@ -15,7 +16,8 @@ Config.RENT_HOUR = 8
 Config.START_MONEY = 15000
 Config.RENT = 5000
 Config.BUS_FARE = 100
-Config.HOSPITAL_BILL = 5000
+Config.HOSPITAL_BILL = 2000
+Config.HOSPITAL_SHARE = 0.3 -- больница берёт не больше 30 % наличных
 Config.FLAT_PRICE = 1200000
 
 Config.WALK_SPEED = 16
@@ -43,10 +45,25 @@ Config.BARISTA_COOLDOWN = 180 -- игровых минут
 Config.BARISTA_OPEN = 7
 Config.BARISTA_CLOSE = 21
 
-Config.IT_PAY = 15000
-Config.IT_PAY_FAIL = 2000
-Config.IT_ENERGY = 20
-Config.IT_COOLDOWN = 60
+Config.IT_PAY = 8000
+Config.IT_PAY_FAIL = 1500
+Config.IT_ENERGY = 15
+Config.IT_COOLDOWN = 90
+-- Карьера в Qazaq Soft: после стольких задач — повышение и прибавка к оплате.
+Config.IT_RANKS = {
+	{ tasks = 0, name = "Junior", pay = 1 },
+	{ tasks = 30, name = "Middle", pay = 1.25 },
+	{ tasks = 80, name = "Senior", pay = 1.5 },
+}
+
+-- Ежедневный подарок за вход: растёт с серией дней, пропуск не обнуляет серию.
+Config.DAILY_BASE = 1000
+Config.DAILY_STEP = 500
+Config.DAILY_MAX_STREAK = 6
+
+-- После квартиры: обустроить дом и перевезти маму.
+Config.MOM_PRICE = 1500000
+Config.FURNITURE = { "syrmak", "sofa", "kitchen", "tv", "telescope" }
 
 export type Item = {
 	id: string,
@@ -64,23 +81,30 @@ Config.ITEMS = {
 	samsa = { id = "samsa", name = "Самса", price = 400, desc = "Из тандыра, с мясом", food = 22 },
 	baursak = { id = "baursak", name = "Баурсаки", price = 300, desc = "Пышные, ещё тёплые", food = 20 },
 	kurt = { id = "kurt", name = "Курт", price = 150, desc = "Солёные шарики из творога", food = 8 },
-	kumys = { id = "kumys", name = "Кумыс", price = 500, desc = "Бодрит", food = 10, energy = 8 },
+	ayran = { id = "ayran", name = "Айран", price = 500, desc = "Освежает и бодрит", food = 10, energy = 8 },
 	tea = { id = "tea", name = "Горячий чай с молоком", price = 200, desc = "Согревает", food = 3, warmth = 35 },
 	doner = { id = "doner", name = "Донер", price = 900, desc = "Большой, с собой", food = 45 },
 	lagman = { id = "lagman", name = "Лагман", price = 1400, desc = "Горячий и сытный", food = 60, warmth = 20 },
 	cappuccino = { id = "cappuccino", name = "Капучино", price = 700, desc = "Тепло и бодрость", energy = 15, warmth = 15 },
-	puffer = { id = "puffer", name = "Пуховик", price = 12000, desc = "Без него зимой никак", warm = 3, slot = "outer" },
+	puffer = { id = "puffer", name = "Пуховик", price = 18000, desc = "Без него зимой никак", warm = 3, slot = "outer" },
 	ushanka = { id = "ushanka", name = "Ушанка", price = 2500, desc = "Уши в тепле", warm = 1, slot = "hat" },
 	pufferN = { id = "pufferN", name = "Пуховик «Солтүстік»", price = 45000, desc = "Держит до −40", warm = 4, slot = "outer" },
-	scooter = { id = "scooter", name = "Электросамокат", price = 60000, desc = "Двигаешься намного быстрее", slot = "key" },
-	laptop = { id = "laptop", name = "Ноутбук", price = 120000, desc = "Можно учить код дома", slot = "key" },
+	scooter = { id = "scooter", name = "Электросамокат", price = 35000, desc = "Двигаешься намного быстрее", slot = "key" },
+	laptop = { id = "laptop", name = "Ноутбук", price = 90000, desc = "Учить код и работать прямо из дома", slot = "key" },
+	-- мебель для своей квартиры
+	syrmak = { id = "syrmak", name = "Сырмақ", price = 80000, desc = "Войлочный ковёр с орнаментом", slot = "home" },
+	sofa = { id = "sofa", name = "Диван", price = 120000, desc = "Мягкий, для гостей", slot = "home" },
+	kitchen = { id = "kitchen", name = "Кухня", price = 150000, desc = "Чтобы угощать бешбармаком", slot = "home" },
+	tv = { id = "tv", name = "Большой телевизор", price = 180000, desc = "Смотреть хоккей с «Барысом»", slot = "home" },
+	telescope = { id = "telescope", name = "Телескоп", price = 250000, desc = "Смотреть на Байтерек и звёзды", slot = "home" },
 } :: { [string]: Item }
 
 Config.SHOPS = {
-	bazaar = { title = "Базар", text = "Подходи, бауырым, всё свежее!", items = { "samsa", "baursak", "kurt", "kumys", "tea", "puffer", "ushanka" } },
+	bazaar = { title = "Базар", text = "Подходи, бауырым, всё свежее!", items = { "samsa", "baursak", "kurt", "ayran", "tea", "ushanka", "puffer" } },
 	doner = { title = "Шаурма №1", text = "Что будем заказывать?", items = { "doner", "lagman", "tea" } },
 	coffee = { title = "Кофейня «Есіл»", text = "Сәлем! Что приготовить?", items = { "cappuccino", "tea" } },
 	mall = { title = "Хан Шатыр", text = "Добро пожаловать в торговый центр!", items = { "pufferN", "scooter", "laptop", "cappuccino" } },
+	furniture = { title = "Мебель для дома", text = "Обустрой свою квартиру!", items = { "syrmak", "sofa", "kitchen", "tv", "telescope" } },
 }
 
 Config.BARISTA_INGREDIENTS = { "Эспрессо", "Молоко", "Пенка", "Сироп", "Корица", "Лёд" }

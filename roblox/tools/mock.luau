@@ -254,6 +254,8 @@ function Methods:PivotTo(target)
 	if root then root.CFrame = target end
 end
 function Methods:BindToClose(fn) table.insert(closers, fn) end
+function Methods:IsStudio() return false end
+function Methods:Kick(message) self._props.kicked = message or true; self.Parent = nil end
 function Methods:FireClient(player, ...)
 	sent[player] = sent[player] or {}
 	table.insert(sent[player], { event = self.Name, args = { ... } })
@@ -279,6 +281,13 @@ function Methods:GetDataStore(name)
 	return {
 		GetAsync = function(_, key) return copy(data[key]) end,
 		SetAsync = function(_, key, value) data[key] = copy(value) end,
+		UpdateAsync = function(_, key, transform)
+			local result = transform(copy(data[key]))
+			if result ~= nil then
+				data[key] = copy(result)
+			end
+			return copy(result)
+		end,
 	}
 end
 function Methods:GetService(name)
@@ -291,6 +300,7 @@ function Methods:GetService(name)
 end
 
 local game = new("DataModel", "game")
+game.JobId = "test-server"
 local workspace = game:GetService("Workspace")
 local camera = new("Camera")
 camera.ViewportSize = Vector2.new(800, 360)

@@ -11,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const SCRIPTS = [
   { file: 'src/shared/Config.luau', name: 'Config', class: 'ModuleScript', parent: 'Shared' },
   { file: 'src/shared/Logic.luau', name: 'Logic', class: 'ModuleScript', parent: 'Shared' },
-  { file: 'src/shared/Questions.luau', name: 'Questions', class: 'ModuleScript', parent: 'Shared' },
+  { file: 'src/server/Questions.luau', name: 'Questions', class: 'ModuleScript', parent: 'ServerScriptService' },
   { file: 'src/server/World.luau', name: 'World', class: 'ModuleScript', parent: 'ServerScriptService' },
   { file: 'src/server/Main.server.luau', name: 'Main', class: 'Script', parent: 'ServerScriptService' },
   { file: 'src/client/Main.client.luau', name: 'Client', class: 'LocalScript', parent: 'StarterPlayerScripts' },
@@ -41,7 +41,7 @@ export function build() {
   nextId = 0;
   const xml = [
     '<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">',
-    item('Workspace', 'Workspace', '<bool name="FilteringEnabled">true</bool>'),
+    item('Workspace', 'Workspace', '<bool name="FilteringEnabled">true</bool><bool name="StreamingEnabled">false</bool>'),
     item('Players', 'Players'),
     item('Lighting', 'Lighting'),
     item('ReplicatedStorage', 'ReplicatedStorage', '', [item('Folder', 'Shared', '', scriptsFor('Shared'))]),

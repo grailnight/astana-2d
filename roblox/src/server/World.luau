@@ -122,7 +122,7 @@ local function lamp(x: number, z: number)
 	block(x, 6, z, 0.5, 12, 0.5, Color3.fromRGB(60, 64, 72))
 	local bulb = block(x, 12.4, z, 1.6, 0.8, 1.6, Color3.fromRGB(255, 236, 190), Enum.Material.Neon)
 	local light = Instance.new("PointLight")
-	light.Range = 34
+	light.Range = 24
 	light.Brightness = 0.9
 	light.Color = Color3.fromRGB(255, 226, 170)
 	light.Parent = bulb
@@ -188,7 +188,7 @@ local function shell(place: Config.Place): Inside
 
 	local bulb = block(x, h - 0.3, z, 3, 0.4, 3, Color3.fromRGB(255, 240, 210), Enum.Material.Neon)
 	local light = Instance.new("PointLight")
-	light.Range = 46
+	light.Range = 30
 	light.Brightness = 1.2
 	light.Parent = bulb
 

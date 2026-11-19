@@ -28,7 +28,7 @@ end
 local shared = module("Shared", ReplicatedStorage, "Folder")
 local Config = m.require(module("Config", shared))
 local Logic = m.require(module("Logic", shared))
-local Questions = m.require(module("Questions", shared))
+local Questions = m.require(module("Questions", ServerScriptService))
 module("World", ServerScriptService)
 local main = module("Main", ServerScriptService, "Script")
 
@@ -40,19 +40,55 @@ do
 	local s = Logic.newState()
 	check(Logic.warmRating(s) == 0, "без одежды тепло 0")
 	local cold = Logic.coldDrain(s, { indoors = false, temp = -20, buran = false })
+	check(not Logic.buy(s, "puffer"), "на пуховик сначала надо заработать")
+	s.money = 20000
 	local ok = Logic.buy(s, "puffer")
-	check(ok and s.money == 3000 and s.items.puffer, "покупка пуховика")
+	check(ok and s.money == 2000 and s.items.puffer, "покупка пуховика")
 	check(Logic.coldDrain(s, { indoors = false, temp = -20, buran = false }) < cold / 2, "пуховик греет")
 	check(not Logic.buy(s, "puffer"), "второй пуховик не продаётся")
 	check(not Logic.buy(s, "laptop"), "на ноутбук не хватает")
 	s.warmth = 1
 	check(Logic.tick(s, 30, { indoors = false, temp = -25, buran = true }) == "cold", "замерзание")
 	local bill = Logic.faint(s)
-	check(bill == 3000 and s.money == 0 and s.warmth >= 70, "счёт больницы")
+	check(bill == 0 and s.money == 2000 and s.warmth >= 70 and s.faints == 1, "первый обморок лечат бесплатно")
+	s.money = 10000
+	check(Logic.faint(s) == Config.HOSPITAL_BILL and s.money == 8000, "второй обморок — по счёту")
+	s.money = 1000
+	check(Logic.faint(s) == 300 and s.money == 700, "больница берёт не больше 30 % наличных")
+	check(Logic.newDay(s) and s.day == 2 and s.debt == 0 and s.money == 700, "первая ночь бесплатно")
 	Logic.newDay(s)
-	check(s.debt == Config.RENT and s.day == 2, "долг за аренду")
-	s.money = 6000
-	check(Logic.payDebt(s) and s.debt == 0 and s.money == 1000, "погашение долга")
+	check(s.day == 3 and s.money == 0 and s.debt == Config.RENT - 700, "аренда: платим сколько есть, остальное в долг")
+	s.money = 1000
+	check(Logic.payDebt(s) and s.money == 0 and s.debt == Config.RENT - 1700, "долг можно гасить частями")
+	check(not Logic.payDebt(s), "без денег погасить нельзя")
+	s.money = 10000
+	check(Logic.payDebt(s) and s.debt == 0 and s.money == 10000 - (Config.RENT - 1700), "долг погашен")
+	-- карьера и награды
+	local w = Logic.newState()
+	check(Logic.title(w) == "Новичок", "звание новичка")
+	w.hired = true
+	check(Logic.itPay(w, true) == Config.IT_PAY and Logic.title(w) == "Junior-разработчик", "джуниор")
+	w.itTasks = 30
+	check(Logic.itPay(w, true) == 10000 and Logic.itRank(w).name == "Middle", "повышение до Middle")
+	w.itTasks = 80
+	check(Logic.itPay(w, true) == 12000 and Logic.itPay(w, false) == Config.IT_PAY_FAIL, "Senior и задача с ошибкой")
+	local before = w.money
+	check(Logic.daily(w, 100) == Config.DAILY_BASE and w.streak == 1, "первый ежедневный подарок")
+	check(Logic.daily(w, 100) == nil and w.money == before + Config.DAILY_BASE, "второй раз за день подарка нет")
+	check(Logic.daily(w, 105) == Config.DAILY_BASE + Config.DAILY_STEP and w.streak == 2, "пропуск дней не обнуляет серию")
+	for day = 106, 120 do
+		Logic.daily(w, day)
+	end
+	check(Logic.daily(w, 121) == Config.DAILY_BASE + Config.DAILY_STEP * Config.DAILY_MAX_STREAK, "подарок перестаёт расти")
+	w.ownsFlat = true
+	check(string.find(Logic.goal(w), "мебель 0 из", 1, true) and Logic.goalPlace(w) == "flat", "после квартиры — мебель")
+	for _, id in Config.FURNITURE do
+		w.items[id] = true
+	end
+	w.money = 0
+	check(string.find(Logic.goal(w), "маму", 1, true) and Logic.title(w) == "Новосёл", "потом — перевезти маму")
+	w.momMoved = true
+	check(Logic.goalPlace(w) == nil and Logic.title(w) == "Хозяин дома" and select(1, Logic.progress(w)) == 1, "история закончена")
 	check(Logic.temperature(15, false) > Logic.temperature(3, false), "днём теплее, чем ночью")
 	local dirty = Logic.sanitize({ money = -5, energy = 900, items = { scooter = true, hack = true, samsa = true }, hired = "да", day = 0 / 0 })
 	check(dirty.money == 0 and dirty.energy == 100 and dirty.items.scooter and not dirty.items.hack and not dirty.items.samsa and dirty.hired == false and dirty.day == 1, "очистка сохранения")
@@ -116,6 +152,9 @@ collect(city)
 local function trigger(player, action, arg)
 	for _, prompt in prompts do
 		if prompt:GetAttribute("Action") == action and (arg == nil or prompt:GetAttribute("Arg") == arg) then
+			-- игрок подходит к кнопке, как в настоящей игре: сервер проверяет расстояние
+			local at = prompt.Parent.Position
+			player.Character.HumanoidRootPart.CFrame = m.CFrame.new(at.X + 2, at.Y, at.Z + 2)
 			prompt.Triggered:Fire(player)
 			return
 		end
@@ -128,6 +167,15 @@ for _, action in { "sleep", "sleepFlat", "landlady", "kazLesson", "studyHome", "
 		found = found or prompt:GetAttribute("Action") == action
 	end
 	check(found, "в городе есть действие " .. action)
+end
+local function farTrigger(player, action)
+	for _, prompt in prompts do
+		if prompt:GetAttribute("Action") == action then
+			player.Character.HumanoidRootPart.CFrame = m.CFrame.new(prompt.Parent.Position.X + 200, 3, prompt.Parent.Position.Z)
+			prompt.Triggered:Fire(player)
+			return
+		end
+	end
 end
 
 local function last(player, event)
@@ -196,21 +244,23 @@ end
 m.advance(4)
 check(shade.Visible, "вступление показано")
 click(1)
-click(1)
 check(not shade.Visible, "вступление закрыто")
 check(state().money == Config.START_MONEY, "стартовые деньги")
-check(string.find(state().goal, "пуховик", 1, true), "первая цель — пуховик")
+check(string.find(state().goal, "Даурен", 1, true), "первая цель — заказ курьера: " .. state().goal)
+check(state().guide ~= nil and state().guide.name == "Курьерская служба", "метка ведёт в курьерскую службу")
 
 -- базар
 trigger(p1, "shop", "bazaar")
 check(#buttons() == 8, "товары базара: " .. #buttons())
 click(1)
 check(state().money == 14600, "самса куплена: " .. state().money)
+click(7)
+check(state().money == 14600, "на пуховик пока не хватает")
 click(6)
-check(state().money == 2600, "пуховик куплен")
+check(state().money == 12100, "ушанка куплена: " .. state().money)
 click(8)
 check(not shade.Visible, "магазин закрыт")
-check(not string.find(state().goal, "пуховик", 1, true), "цель сменилась")
+check(string.find(state().goal, "Даурен", 1, true), "цель всё ещё — первый заказ")
 
 -- курьер
 trigger(p1, "courier")
@@ -218,8 +268,15 @@ click(1)
 local target = state().target
 check(target ~= nil, "заказ выдан")
 moveTo(p1, target.x, 3, target.z)
-m.advance(1.2)
-check(state().target == nil and state().money > 2600, "доставка оплачена: " .. state().money)
+m.advance(0.6)
+check(state().target ~= nil, "телепорт к адресу не засчитывается")
+m.advance(12)
+check(state().target == nil and state().money > 12100, "доставка оплачена: " .. state().money)
+check(state().guide ~= nil and state().guide.name ~= "Курьерская служба", "после первой доставки метка ведёт дальше: " .. tostring(state().guide and state().guide.name))
+m.advance(2)
+check(shade.Visible and string.find(last(p1, "Dialog").text, "Есть заказ", 1, true), "после доставки сразу предлагают новый заказ")
+click(3)
+check(not shade.Visible and state().target == nil, "от нового заказа можно отказаться")
 local afterCourier = state().money
 
 -- урок казахского через интерфейс
@@ -378,7 +435,7 @@ remotes.DialogReply.OnServerEvent:Fire(p2, 999, 1)
 remotes.DialogReply.OnServerEvent:Fire(p2, nil, { 1, 2 })
 trigger(p2, "buyFlat")
 answer(p2, "взлом")
-check(not string.find(last(p2, "State").goal, "своя квартира", 1, true), "мусорный ответ не покупает квартиру")
+check(not string.find(last(p2, "State").goal, "Обустрой", 1, true), "мусорный ответ не покупает квартиру")
 trigger(p2, "buyFlat")
 answer(p2, 1)
 m.advance(1)
@@ -386,16 +443,48 @@ answer(p2, 1)
 m.advance(1)
 local rich = last(p2, "State")
 check(rich.money == 1300000 + Config.IT_PAY - Config.FLAT_PRICE, "квартира оплачена")
-check(string.find(rich.goal, "своя квартира", 1, true), "цель достигнута")
+check(string.find(rich.goal, "Обустрой", 1, true) and rich.title == "Новосёл", "квартира куплена, дальше — мебель")
 check(sawToast(p1, "своя квартира"), "все игроки видят новость")
+-- мебель и мама
+trigger(p2, "buyFlat")
+answer(p2, 2)
+m.advance(0.1)
+check(string.find(last(p2, "Dialog").text, "обустрой", 1, true), "маму — после мебели")
+answer(p2, 1)
+trigger(p2, "buyFlat")
+answer(p2, 1)
+answer(p2, 1)
+m.advance(0.1)
+check(string.find(last(p2, "State").goal, "мебель 1 из", 1, true), "сырмақ куплен")
+answer(p2, #last(p2, "Dialog").options)
+m.advance(0.1)
+-- издалека кнопки не работают
+local dialogsBefore = #(m.sent[p2] or {})
+farTrigger(p2, "itWork")
+m.advance(0.1)
+check(#m.sent[p2] == dialogsBefore or last(p2, "Dialog").title ~= "Qazaq Soft", "кнопка издалека не срабатывает")
 trigger(p2, "sleepFlat")
 m.advance(0.1)
 
 m.removePlayer(p2)
-local saved = m.stores[Config.DATASTORE].p_2
-check(saved.ownsFlat == true and saved.hired == true and saved.items.bogus == nil and saved.items.puffer == true, "сохранение при выходе")
+local record = m.stores[Config.DATASTORE].p_2
+local saved = record.state
+check(saved.ownsFlat == true and saved.hired == true and saved.items.bogus == nil and saved.items.puffer == true and saved.items.syrmak == true, "сохранение при выходе")
+check(record.lock == nil, "при выходе блокировка снята")
 m.removePlayer(p1)
-check(m.stores[Config.DATASTORE].p_1 ~= nil and m.stores[Config.DATASTORE].p_1.day >= 2, "сохранение первого игрока")
+check(m.stores[Config.DATASTORE].p_1 ~= nil and m.stores[Config.DATASTORE].p_1.state.day >= 2, "сохранение первого игрока")
+
+-- игрок ещё сохраняется на другом сервере: этот сервер не загружает старые данные
+m.stores[Config.DATASTORE].p_3 = { state = { money = 777 }, lock = { job = "other-server", t = m.os.time() } }
+local p3 = m.addPlayer("Twin", 3, false)
+m.advance(40)
+check(p3._props.kicked ~= nil, "занятое сохранение — вежливо просим зайти позже")
+check(m.stores[Config.DATASTORE].p_3.state.money == 777 and m.stores[Config.DATASTORE].p_3.lock.job == "other-server", "чужое сохранение не тронуто")
+for i = #m.errors, 1, -1 do
+	if string.find(m.errors[i], "занято другим сервером", 1, true) then
+		table.remove(m.errors, i) -- это предупреждение здесь ожидаемо
+	end
+end
 for _, close in m.closers do
 	close()
 end

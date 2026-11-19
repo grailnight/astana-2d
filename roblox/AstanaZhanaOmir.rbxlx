@@ -1,6 +1,6 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 <Item class="Workspace" referent="RBX0000">
-<Properties><string name="Name">Workspace</string><bool name="FilteringEnabled">true</bool></Properties>
+<Properties><string name="Name">Workspace</string><bool name="FilteringEnabled">true</bool><bool name="StreamingEnabled">false</bool></Properties>
 </Item>
 <Item class="Players" referent="RBX0001">
 <Properties><string name="Name">Players</string></Properties>
@@ -8,9 +8,9 @@
 <Item class="Lighting" referent="RBX0002">
 <Properties><string name="Name">Lighting</string></Properties>
 </Item>
-<Item class="ReplicatedStorage" referent="RBX0007">
+<Item class="ReplicatedStorage" referent="RBX0006">
 <Properties><string name="Name">ReplicatedStorage</string></Properties>
-<Item class="Folder" referent="RBX0006">
+<Item class="Folder" referent="RBX0005">
 <Properties><string name="Name">Shared</string></Properties>
 <Item class="ModuleScript" referent="RBX0003">
 <Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[--!strict
@@ -19,8 +19,9 @@
 
 local Config = {}
 
-Config.SAVE_VERSION = 1
+Config.SAVE_VERSION = 2
 Config.DATASTORE = "AstanaZhanaOmir_v1"
+Config.LOCK_SECONDS = 300 -- чужая блокировка сохранения считается брошенной через 5 минут
 
 -- Время: одна игровая минута длится 0.5 секунды, сутки — 12 минут.
 Config.SECONDS_PER_GAME_MINUTE = 0.5
@@ -30,7 +31,8 @@ Config.RENT_HOUR = 8
 Config.START_MONEY = 15000
 Config.RENT = 5000
 Config.BUS_FARE = 100
-Config.HOSPITAL_BILL = 5000
+Config.HOSPITAL_BILL = 2000
+Config.HOSPITAL_SHARE = 0.3 -- больница берёт не больше 30 % наличных
 Config.FLAT_PRICE = 1200000
 
 Config.WALK_SPEED = 16
@@ -58,10 +60,25 @@ Config.BARISTA_COOLDOWN = 180 -- игровых минут
 Config.BARISTA_OPEN = 7
 Config.BARISTA_CLOSE = 21
 
-Config.IT_PAY = 15000
-Config.IT_PAY_FAIL = 2000
-Config.IT_ENERGY = 20
-Config.IT_COOLDOWN = 60
+Config.IT_PAY = 8000
+Config.IT_PAY_FAIL = 1500
+Config.IT_ENERGY = 15
+Config.IT_COOLDOWN = 90
+-- Карьера в Qazaq Soft: после стольких задач — повышение и прибавка к оплате.
+Config.IT_RANKS = {
+	{ tasks = 0, name = "Junior", pay = 1 },
+	{ tasks = 30, name = "Middle", pay = 1.25 },
+	{ tasks = 80, name = "Senior", pay = 1.5 },
+}
+
+-- Ежедневный подарок за вход: растёт с серией дней, пропуск не обнуляет серию.
+Config.DAILY_BASE = 1000
+Config.DAILY_STEP = 500
+Config.DAILY_MAX_STREAK = 6
+
+-- После квартиры: обустроить дом и перевезти маму.
+Config.MOM_PRICE = 1500000
+Config.FURNITURE = { "syrmak", "sofa", "kitchen", "tv", "telescope" }
 
 export type Item = {
 	id: string,
@@ -79,23 +96,30 @@ Config.ITEMS = {
 	samsa = { id = "samsa", name = "Самса", price = 400, desc = "Из тандыра, с мясом", food = 22 },
 	baursak = { id = "baursak", name = "Баурсаки", price = 300, desc = "Пышные, ещё тёплые", food = 20 },
 	kurt = { id = "kurt", name = "Курт", price = 150, desc = "Солёные шарики из творога", food = 8 },
-	kumys = { id = "kumys", name = "Кумыс", price = 500, desc = "Бодрит", food = 10, energy = 8 },
+	ayran = { id = "ayran", name = "Айран", price = 500, desc = "Освежает и бодрит", food = 10, energy = 8 },
 	tea = { id = "tea", name = "Горячий чай с молоком", price = 200, desc = "Согревает", food = 3, warmth = 35 },
 	doner = { id = "doner", name = "Донер", price = 900, desc = "Большой, с собой", food = 45 },
 	lagman = { id = "lagman", name = "Лагман", price = 1400, desc = "Горячий и сытный", food = 60, warmth = 20 },
 	cappuccino = { id = "cappuccino", name = "Капучино", price = 700, desc = "Тепло и бодрость", energy = 15, warmth = 15 },
-	puffer = { id = "puffer", name = "Пуховик", price = 12000, desc = "Без него зимой никак", warm = 3, slot = "outer" },
+	puffer = { id = "puffer", name = "Пуховик", price = 18000, desc = "Без него зимой никак", warm = 3, slot = "outer" },
 	ushanka = { id = "ushanka", name = "Ушанка", price = 2500, desc = "Уши в тепле", warm = 1, slot = "hat" },
 	pufferN = { id = "pufferN", name = "Пуховик «Солтүстік»", price = 45000, desc = "Держит до −40", warm = 4, slot = "outer" },
-	scooter = { id = "scooter", name = "Электросамокат", price = 60000, desc = "Двигаешься намного быстрее", slot = "key" },
-	laptop = { id = "laptop", name = "Ноутбук", price = 120000, desc = "Можно учить код дома", slot = "key" },
+	scooter = { id = "scooter", name = "Электросамокат", price = 35000, desc = "Двигаешься намного быстрее", slot = "key" },
+	laptop = { id = "laptop", name = "Ноутбук", price = 90000, desc = "Учить код и работать прямо из дома", slot = "key" },
+	-- мебель для своей квартиры
+	syrmak = { id = "syrmak", name = "Сырмақ", price = 80000, desc = "Войлочный ковёр с орнаментом", slot = "home" },
+	sofa = { id = "sofa", name = "Диван", price = 120000, desc = "Мягкий, для гостей", slot = "home" },
+	kitchen = { id = "kitchen", name = "Кухня", price = 150000, desc = "Чтобы угощать бешбармаком", slot = "home" },
+	tv = { id = "tv", name = "Большой телевизор", price = 180000, desc = "Смотреть хоккей с «Барысом»", slot = "home" },
+	telescope = { id = "telescope", name = "Телескоп", price = 250000, desc = "Смотреть на Байтерек и звёзды", slot = "home" },
 } :: { [string]: Item }
 
 Config.SHOPS = {
-	bazaar = { title = "Базар", text = "Подходи, бауырым, всё свежее!", items = { "samsa", "baursak", "kurt", "kumys", "tea", "puffer", "ushanka" } },
+	bazaar = { title = "Базар", text = "Подходи, бауырым, всё свежее!", items = { "samsa", "baursak", "kurt", "ayran", "tea", "ushanka", "puffer" } },
 	doner = { title = "Шаурма №1", text = "Что будем заказывать?", items = { "doner", "lagman", "tea" } },
 	coffee = { title = "Кофейня «Есіл»", text = "Сәлем! Что приготовить?", items = { "cappuccino", "tea" } },
 	mall = { title = "Хан Шатыр", text = "Добро пожаловать в торговый центр!", items = { "pufferN", "scooter", "laptop", "cappuccino" } },
+	furniture = { title = "Мебель для дома", text = "Обустрой свою квартиру!", items = { "syrmak", "sofa", "kitchen", "tv", "telescope" } },
 }
 
 Config.BARISTA_INGREDIENTS = { "Эспрессо", "Молоко", "Пенка", "Сироп", "Корица", "Лёд" }
@@ -198,6 +222,11 @@ export type State = {
 	wishDay: number,
 	wished: boolean,
 	interviewDay: number,
+	faints: number,
+	milestone: number, -- последняя отмеченная доля пути к квартире, в процентах
+	lastDaily: number, -- номер дня (UTC) последнего ежедневного подарка
+	streak: number,
+	momMoved: boolean,
 }
 
 export type Env = { indoors: boolean, temp: number, buran: boolean }
@@ -222,6 +251,11 @@ function Logic.newState(): State
 		wishDay = 0,
 		wished = false,
 		interviewDay = 0,
+		faints = 0,
+		milestone = 0,
+		lastDaily = 0,
+		streak = 0,
+		momMoved = false,
 	}
 end
 
@@ -331,7 +365,9 @@ function Logic.faint(state: State): number
 	state.energy = math.max(state.energy, 45)
 	state.food = math.max(state.food, 30)
 	state.warmth = math.max(state.warmth, 70)
-	local bill = math.min(state.money, Config.HOSPITAL_BILL)
+	-- Первый раз лечат бесплатно, потом — не больше 30 % наличных.
+	local bill = if state.faints == 0 then 0 else math.min(math.floor(state.money * Config.HOSPITAL_SHARE / 100) * 100, Config.HOSPITAL_BILL)
+	state.faints += 1
 	state.money -= bill
 	return bill
 end
@@ -369,24 +405,106 @@ function Logic.newDay(state: State): string
 	if state.ownsFlat then
 		return `День {state.day}. Доброе утро в своей квартире!`
 	end
-	if state.money >= Config.RENT then
-		state.money -= Config.RENT
-		return `День {state.day}. Аренда комнаты: −{Logic.money(Config.RENT)}.`
+	if state.day == 2 then
+		return "День 2. Первую ночь Гульнар-апай подарила: «Добро пожаловать, балам!»"
 	end
-	state.debt += Config.RENT
-	return `День {state.day}. Нечем платить за комнату! Долг: {Logic.money(state.debt)}.`
+	-- Платим сколько есть, в долг уходит только недостача.
+	local paid = math.min(state.money, Config.RENT)
+	state.money -= paid
+	state.debt += Config.RENT - paid
+	if state.debt > 0 then
+		return `День {state.day}. Не хватило на аренду. Долг: {Logic.money(state.debt)}.`
+	end
+	return `День {state.day}. Аренда комнаты: −{Logic.money(Config.RENT)}.`
 end
 
+-- Гасит долг сколько получится. Возвращает успех и сообщение.
 function Logic.payDebt(state: State): (boolean, string)
 	if state.debt <= 0 then
 		return false, "Долгов нет."
 	end
-	if state.money < state.debt then
-		return false, `Нужно {Logic.money(state.debt)}, а у тебя {Logic.money(state.money)}.`
+	local paid = math.min(state.money, state.debt)
+	if paid <= 0 then
+		return false, `Денег нет. Долг: {Logic.money(state.debt)}. Заработай курьером.`
 	end
-	state.money -= state.debt
-	state.debt = 0
+	state.money -= paid
+	state.debt -= paid
+	if state.debt > 0 then
+		return true, `Оплачено {Logic.money(paid)}. Осталось: {Logic.money(state.debt)}.`
+	end
 	return true, "Долг за комнату погашен. Гульнар-апай довольна."
+end
+
+-- Ранг в Qazaq Soft по числу закрытых задач.
+function Logic.itRank(state: State): { tasks: number, name: string, pay: number }
+	local rank = Config.IT_RANKS[1]
+	for _, entry in Config.IT_RANKS do
+		if state.itTasks >= entry.tasks then
+			rank = entry
+		end
+	end
+	return rank
+end
+
+function Logic.itPay(state: State, success: boolean): number
+	if not success then
+		return Config.IT_PAY_FAIL
+	end
+	return math.floor(Config.IT_PAY * Logic.itRank(state).pay / 100 + 0.5) * 100
+end
+
+-- Ежедневный подарок. today — номер дня по UTC. Возвращает сумму или nil, если сегодня уже был.
+-- Пропуск дней серию не обнуляет: она просто продолжается со следующего входа.
+function Logic.daily(state: State, today: number): number?
+	if state.lastDaily >= today then
+		return nil
+	end
+	state.lastDaily = today
+	state.streak += 1
+	local amount = Config.DAILY_BASE + Config.DAILY_STEP * (math.min(state.streak, Config.DAILY_MAX_STREAK + 1) - 1)
+	state.money += amount
+	return amount
+end
+
+-- Сколько мебели уже куплено.
+function Logic.furnished(state: State): number
+	local count = 0
+	for _, id in Config.FURNITURE do
+		if state.items[id] then
+			count += 1
+		end
+	end
+	return count
+end
+
+-- Доля пути к текущей большой цели (0..1) и её название — для полоски на экране.
+function Logic.progress(state: State): (number, string)
+	if not state.ownsFlat then
+		return math.clamp(state.money / Config.FLAT_PRICE, 0, 1), "Квартира"
+	end
+	if Logic.furnished(state) < #Config.FURNITURE then
+		return Logic.furnished(state) / #Config.FURNITURE, "Мебель"
+	end
+	if not state.momMoved then
+		return math.clamp(state.money / Config.MOM_PRICE, 0, 1), "Мама в Астане"
+	end
+	return 1, "Всё сделано"
+end
+
+-- Звание игрока: видно над головой и в таблице.
+function Logic.title(state: State): string
+	if state.momMoved then
+		return "Хозяин дома"
+	elseif state.ownsFlat then
+		return "Новосёл"
+	elseif state.hired then
+		return Logic.itRank(state).name .. "-разработчик"
+	elseif state.deliveries >= 10 then
+		return "Курьер"
+	elseif state.deliveries >= 1 then
+		return "Стажёр"
+	end
+	return "Новичок"
 end
 
 function Logic.canInterview(state: State): boolean
@@ -403,27 +521,82 @@ function Logic.baristaPay(state: State, correct: number): number
 	return math.floor(Config.BARISTA_PAY * correct * tips / 100 + 0.5) * 100
 end
 
--- Подсказка: что делать дальше.
-function Logic.goal(state: State): string
+-- Подсказка: что делать дальше. Возвращает текст и здание, к которому ведёт метка.
+function Logic.goalStep(state: State): (string, string?)
 	if state.ownsFlat then
-		return "У тебя своя квартира на левом берегу. Астана — твой дом!"
+		local furnished = Logic.furnished(state)
+		if furnished < #Config.FURNITURE then
+			return `Обустрой квартиру: мебель {furnished} из {#Config.FURNITURE} (менеджер в ЖК «Есіл»)`, "flat"
+		end
+		if not state.momMoved then
+			if state.money >= Config.MOM_PRICE then
+				return "Всё готово! Перевези маму в Астану — поговори с менеджером ЖК", "flat"
+			end
+			return `Накопи и перевези маму в Астану: {Logic.money(state.money)} из {Logic.money(Config.MOM_PRICE)}`, "it"
+		end
+		return "Мама живёт с тобой в Астане. Ты дома! Құттықтаймыз!", nil
 	end
 	if state.debt > 0 then
-		return `Погаси долг за комнату: {Logic.money(state.debt)} (Гульнар-апай, дома)`
+		return `Погаси долг за комнату: {Logic.money(state.debt)} (Гульнар-апай, дома)`, "home"
+	end
+	if state.deliveries == 0 then
+		return "Заработай первые деньги: возьми заказ у Даурена в «Курьерской службе»", "depot"
 	end
 	if Logic.warmRating(state) == 0 then
-		return "Купи пуховик на базаре — на улице мороз. Заработать можно курьером."
+		return `Купи пуховик на базаре ({Logic.money(Config.ITEMS.puffer.price)}) — на улице мороз`, "bazaar"
 	end
 	if state.hired then
-		return `Работай в Qazaq Soft и копи на квартиру в ЖК «Есіл»: {Logic.money(Config.FLAT_PRICE)}`
+		if state.money >= Config.FLAT_PRICE then
+			return "Денег хватает! Купи квартиру в ЖК «Есіл»", "flat"
+		end
+		return `Работай в Qazaq Soft и копи на квартиру: {Logic.money(state.money)} из {Logic.money(Config.FLAT_PRICE)}`, "it"
 	end
 	if Logic.level(state.kazXp) < Config.INTERVIEW_KAZ then
-		return `Учи казахский на курсах: уровень {Logic.level(state.kazXp)} из {Config.INTERVIEW_KAZ}`
+		return `Учи казахский на курсах: уровень {Logic.level(state.kazXp)} из {Config.INTERVIEW_KAZ}`, "school"
 	end
 	if Logic.level(state.codeXp) < Config.INTERVIEW_CODE then
-		return `Учи код в библиотеке: уровень {Logic.level(state.codeXp)} из {Config.INTERVIEW_CODE}`
+		return `Учи код в библиотеке: уровень {Logic.level(state.codeXp)} из {Config.INTERVIEW_CODE}`, "library"
 	end
-	return "Иди на собеседование в Qazaq Soft на левом берегу"
+	return "Иди на собеседование в Qazaq Soft на левом берегу", "it"
+end
+
+function Logic.goal(state: State): string
+	return (Logic.goalStep(state))
+end
+
+function Logic.goalPlace(state: State): string?
+	local _, place = Logic.goalStep(state)
+	return place
+end
+
+-- Точка на улице перед дверью здания (для метки цели).
+local function doorOf(id: string): (number, number)
+	for _, place in Config.BUILDINGS do
+		if place.id == id then
+			return place.x, place.z + place.door * (place.d / 2 + 4)
+		end
+	end
+	return Config.SPAWN.x, Config.SPAWN.z
+end
+
+export type Spot = { x: number, z: number, name: string }
+
+-- Куда идти ради текущей цели: метка в мире дублирует подсказку сверху.
+function Logic.goalSpot(state: State): Spot?
+	local id = Logic.goalPlace(state)
+	if id == nil then
+		return nil
+	end
+	if id == "bazaar" then
+		return { x = Config.BAZAAR.x, z = Config.BAZAAR.z + 8, name = "Базар" }
+	end
+	local x, z = doorOf(id)
+	for _, place in Config.BUILDINGS do
+		if place.id == id then
+			return { x = x, z = z, name = place.name }
+		end
+	end
+	return { x = x, z = z, name = id }
 end
 
 -- 1234567 → "1 234 567 ₸"
@@ -443,7 +616,11 @@ end
 return Logic
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX0005">
+</Item>
+</Item>
+<Item class="ServerScriptService" referent="RBX0010">
+<Properties><string name="Name">ServerScriptService</string></Properties>
+<Item class="ModuleScript" referent="RBX0007">
 <Properties><string name="Name">Questions</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Вопросы для уроков казахского и для задач по коду.
 
@@ -597,10 +774,6 @@ end
 return Questions
 ]]></ProtectedString></Properties>
 </Item>
-</Item>
-</Item>
-<Item class="ServerScriptService" referent="RBX0010">
-<Properties><string name="Name">ServerScriptService</string></Properties>
 <Item class="ModuleScript" referent="RBX0008">
 <Properties><string name="Name">World</string><ProtectedString name="Source"><![CDATA[--!strict
 -- Строит Астану из деталей прямо при запуске сервера: в файле места нет ни одной модели.
@@ -726,7 +899,7 @@ local function lamp(x: number, z: number)
 	block(x, 6, z, 0.5, 12, 0.5, Color3.fromRGB(60, 64, 72))
 	local bulb = block(x, 12.4, z, 1.6, 0.8, 1.6, Color3.fromRGB(255, 236, 190), Enum.Material.Neon)
 	local light = Instance.new("PointLight")
-	light.Range = 34
+	light.Range = 24
 	light.Brightness = 0.9
 	light.Color = Color3.fromRGB(255, 226, 170)
 	light.Parent = bulb
@@ -792,7 +965,7 @@ local function shell(place: Config.Place): Inside
 
 	local bulb = block(x, h - 0.3, z, 3, 0.4, 3, Color3.fromRGB(255, 240, 210), Enum.Material.Neon)
 	local light = Instance.new("PointLight")
-	light.Range = 46
+	light.Range = 30
 	light.Brightness = 1.2
 	light.Parent = bulb
 
@@ -1194,10 +1367,12 @@ local DataStoreService = game:GetService("DataStoreService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Logic = require(ReplicatedStorage.Shared.Logic)
-local Questions = require(ReplicatedStorage.Shared.Questions)
+-- Вопросы лежат на сервере: клиент не видит правильных ответов.
+local Questions = require(script.Parent.Questions)
 local World = require(script.Parent.World)
 
 World.build()
@@ -1217,12 +1392,14 @@ local DialogReply = remote("DialogReply")
 local FadeEvent = remote("Fade")
 remotes.Parent = ReplicatedStorage
 
+local IS_STUDIO = RunService:IsStudio()
 local store: DataStore? = nil
 pcall(function()
-	store = DataStoreService:GetDataStore(Config.DATASTORE)
+	-- Тесты в Studio пишут в отдельное хранилище и не трогают сохранения игроков.
+	store = DataStoreService:GetDataStore(Config.DATASTORE .. (if IS_STUDIO then "_studio" else ""))
 end)
 
-type Target = { x: number, z: number, name: string, pay: number }
+type Target = { x: number, z: number, name: string, pay: number, startedAt: number, distance: number }
 type Session = {
 	state: Logic.State,
 	busy: boolean,
@@ -1234,7 +1411,8 @@ type Session = {
 	indoors: boolean,
 	warned: { [string]: boolean },
 	money: IntValue,
-	day: IntValue,
+	title: StringValue,
+	tag: TextLabel?,
 }
 
 local sessions: { [Player]: Session } = {}
@@ -1244,6 +1422,7 @@ local clock = Config.START_HOUR * 60 -- минута суток
 local totalMinutes = 0
 local buran = false
 local buranSwitchAt = rng:NextInteger(500, 1100)
+local buranWarned = false
 
 local function temperature(): number
 	return Logic.temperature(clock / 60, buran)
@@ -1270,8 +1449,14 @@ local function applySpeed(player: Player, session: Session)
 	end
 end
 
-local function toast(player: Player, text: string)
-	ToastEvent:FireClient(player, text)
+local function toast(player: Player, text: string, kind: string?)
+	ToastEvent:FireClient(player, text, kind)
+end
+
+local function toastAll(text: string, kind: string?)
+	for _, other in Players:GetPlayers() do
+		toast(other, text, kind)
+	end
 end
 
 local function send(player: Player)
@@ -1281,8 +1466,15 @@ local function send(player: Player)
 	end
 	local state = session.state
 	session.money.Value = state.money
-	session.day.Value = state.day
+	local title = Logic.title(state)
+	if session.title.Value ~= title then
+		session.title.Value = title
+	end
+	if session.tag and session.tag.Text ~= title then
+		session.tag.Text = title
+	end
 	local target = session.target
+	local progress, progressName = Logic.progress(state)
 	StateEvent:FireClient(player, {
 		money = state.money,
 		energy = state.energy,
@@ -1298,11 +1490,16 @@ local function send(player: Player)
 		buran = buran,
 		indoors = session.indoors,
 		target = if target then { x = target.x, z = target.z, name = target.name } else nil,
+		guide = if target then nil else Logic.goalSpot(state),
+		progress = progress,
+		progressName = progressName,
+		title = title,
+		streak = state.streak,
 	})
 end
 
 -- Диалог с вариантами ответа. Возвращает номер выбранного варианта или nil (закрыл, вышел, не ответил).
-local function ask(player: Player, title: string, text: string, options: { string }, extra: { [string]: any }?): any
+local function ask(player: Player, title: string, text: string, options: { string }, extra: { [string]: any }?, timeout: number?): any
 	local session = sessions[player]
 	if not session then
 		return nil
@@ -1317,7 +1514,7 @@ local function ask(player: Player, title: string, text: string, options: { strin
 	end
 	session.waiting = coroutine.running()
 	DialogEvent:FireClient(player, payload)
-	task.delay(120, function()
+	task.delay(timeout or 120, function()
 		if sessions[player] == session and session.dialogId == id and session.waiting then
 			local thread = session.waiting
 			session.waiting = nil
@@ -1336,7 +1533,7 @@ local function ask(player: Player, title: string, text: string, options: { strin
 end
 
 local function say(player: Player, title: string, text: string)
-	ask(player, title, text, { "Понятно" })
+	ask(player, title, text, { "Понятно" }, nil, 45)
 end
 
 DialogReply.OnServerEvent:Connect(function(player: Player, id: any, value: any)
@@ -1352,7 +1549,13 @@ end)
 -- Запускает сценарий для игрока; пока он идёт, другие сценарии не начинаются.
 local function flow(player: Player, run: (player: Player, session: Session) -> ())
 	local session = sessions[player]
-	if not session or session.busy then
+	if not session then
+		return
+	end
+	if session.busy then
+		if not session.waiting then
+			toast(player, "Сначала закончи текущее дело.")
+		end
 		return
 	end
 	session.busy = true
@@ -1394,9 +1597,9 @@ local function quiz(player: Player, title: string, count: number, make: (Random,
 		end
 		if answer == question.answer then
 			correct += 1
-			toast(player, "Дұрыс! Верно.")
+			toast(player, "Дұрыс! Верно.", "good")
 		else
-			toast(player, `Неверно. Правильный ответ: {question.options[question.answer]}`)
+			toast(player, `Неверно. Правильный ответ: {question.options[question.answer]}`, "bad")
 		end
 	end
 	return correct
@@ -1404,7 +1607,7 @@ end
 
 local function levelUp(player: Player, before: number, after: number, skill: string)
 	if after > before then
-		toast(player, `{skill}: уровень {after}!`)
+		toast(player, `{skill}: уровень {after}!`, "big")
 	end
 end
 
@@ -1434,8 +1637,8 @@ function actions.shop(player, session, arg)
 		if choice == nil or choice == #options then
 			return
 		end
-		local _, message = Logic.buy(session.state, shop.items[choice])
-		toast(player, message)
+		local bought, message = Logic.buy(session.state, shop.items[choice])
+		toast(player, message, if bought then "good" else "bad")
 		applySpeed(player, session)
 		send(player)
 	end
@@ -1457,8 +1660,8 @@ end
 
 function actions.sleep(player, session)
 	if session.state.debt > 0 then
-		say(player, "Гульнар-апай", `Сначала заплати за комнату! Долг: {Logic.money(session.state.debt)}. Поговори со мной, когда будут деньги.`)
-		return
+		-- спать можно и с долгом, иначе получается ловушка: без сна нет сил заработать
+		toast(player, `Гульнар-апай ворчит: «Не забудь про долг — {Logic.money(session.state.debt)}!»`)
 	end
 	sleep(player, session)
 end
@@ -1476,8 +1679,8 @@ function actions.landlady(player, session)
 	if state.debt > 0 then
 		local choice = ask(player, "Гульнар-апай", `Балам, за комнату надо платить. Долг: {Logic.money(state.debt)}.`, { "Заплатить", "Потом" })
 		if choice == 1 then
-			local _, message = Logic.payDebt(state)
-			toast(player, message)
+			local paid, message = Logic.payDebt(state)
+			toast(player, message, if paid then "good" else "bad")
 		end
 		return
 	end
@@ -1514,16 +1717,15 @@ function actions.kazLesson(player, session)
 		say(player, "Сауле-апай", "Ты еле стоишь на ногах. Сначала отдохни.")
 		return
 	end
-	state.money -= Config.KAZ_LESSON_PRICE
-	send(player)
 	local correct = quiz(player, "Урок казахского", Config.LESSON_QUESTIONS, Questions.kaz)
 	if correct == nil then
-		-- закрыл урок на первом вопросе: возвращаем деньги и силы
-		state.money += Config.KAZ_LESSON_PRICE
+		-- закрыл урок на первом вопросе: урок не считается, силы возвращаем
 		state.energy = math.min(100, state.energy + 10)
-		toast(player, "Урок отменён, деньги возвращены.")
+		toast(player, "Урок отменён.")
 		return
 	end
+	-- платим в конце урока: если игрок вышел посреди урока, деньги не пропадут
+	state.money -= math.min(state.money, Config.KAZ_LESSON_PRICE)
 	local before = Logic.level(state.kazXp)
 	Logic.addXp(state, "kazXp", correct * Config.KAZ_XP)
 	levelUp(player, before, Logic.level(state.kazXp), "Казахский")
@@ -1554,6 +1756,15 @@ end
 function actions.studyHome(player, session)
 	if not session.state.items.laptop then
 		say(player, "Стол", "Здесь можно учить код, но нужен ноутбук. Он продаётся в Хан Шатыре. А пока — библиотека.")
+		return
+	end
+	if session.state.hired then
+		local choice = ask(player, "Ноутбук", "Чем займёмся?", { "Рабочая задача Qazaq Soft", "Учить код", "Ничего" })
+		if choice == 1 then
+			actions.itWork(player, session)
+		elseif choice == 2 then
+			study(player, session, Config.CODE_XP_LAPTOP)
+		end
 		return
 	end
 	study(player, session, Config.CODE_XP_LAPTOP)
@@ -1588,10 +1799,18 @@ function actions.courier(player, session)
 		return
 	end
 	local pick = candidates[rng:NextInteger(1, #candidates)]
+	if session.state.deliveries == 0 then
+		-- первый заказ — ближайший, чтобы первые деньги пришли быстро
+		for _, candidate in candidates do
+			if candidate.distance < pick.distance then
+				pick = candidate
+			end
+		end
+	end
 	local pay = Logic.courierPay(pick.distance)
 	local choice = ask(player, "Даурен", `Есть заказ: {pick.address.name}.\nОплата: {Logic.money(pay)}. Берёшь?`, { "Беру!", "Другой заказ", "Не сейчас" })
 	if choice == 1 then
-		session.target = { x = pick.address.x, z = pick.address.z, name = pick.address.name, pay = pay }
+		session.target = { x = pick.address.x, z = pick.address.z, name = pick.address.name, pay = pay, startedAt = os.clock(), distance = pick.distance }
 		toast(player, `Доставь посылку: {pick.address.name}. Иди по жёлтой метке.`)
 	elseif choice == 2 then
 		actions.courier(player, session)
@@ -1607,7 +1826,7 @@ function actions.barista(player, session)
 	end
 	local wait = onCooldown(session, "barista", Config.BARISTA_COOLDOWN)
 	if wait > 0 then
-		say(player, "Айгерим", `Сейчас посетителей нет. Приходи через {Logic.clock(wait)} (ч:мин игрового времени).`)
+		say(player, "Айгерим", `Сейчас посетителей нет. Приходи через {math.ceil(wait * Config.SECONDS_PER_GAME_MINUTE)} сек.`)
 		return
 	end
 	local choice = ask(player, "Смена бариста", "Запомни порядок ингредиентов и повтори его. Три заказа за смену.", { "Начать смену", "Не сейчас" })
@@ -1627,6 +1846,10 @@ function actions.barista(player, session)
 			order[i] = rng:NextInteger(1, #names)
 		end
 		local reply = ask(player, `Заказ {round}/3`, "Запомни рецепт!", names, { kind = "sequence", order = order, show = 1.2 + 0.7 * #order })
+		if reply == nil then
+			toast(player, "Смена прервана.", "bad")
+			break
+		end
 		local good = type(reply) == "table" and #reply == #order
 		if good then
 			for i, value in order do
@@ -1638,9 +1861,9 @@ function actions.barista(player, session)
 		end
 		if good then
 			correct += 1
-			toast(player, "Гость доволен: «Рақмет!»")
+			toast(player, "Гость доволен: «Рақмет!»", "good")
 		else
-			toast(player, "Рецепт перепутан. Гость ушёл.")
+			toast(player, "Рецепт перепутан. Гость ушёл.", "bad")
 		end
 	end
 	local pay = Logic.baristaPay(state, correct)
@@ -1673,13 +1896,18 @@ function actions.interview(player, session)
 	for i, make in makers do
 		local question = make(rng, used)
 		local answer = ask(player, `Собеседование · {i}/3`, question.text, question.options)
+		if answer == nil then
+			toast(player, "Собеседование прервано. Приходи, когда подготовишься.")
+			return
+		end
 		if answer == question.answer then
 			correct += 1
 		end
 	end
 	if correct >= 2 then
 		state.hired = true
-		say(player, "Жанель", `Құттықтаймын! Добро пожаловать в команду Qazaq Soft.\nЗа каждую задачу платим {Logic.money(Config.IT_PAY)}.`)
+		toastAll(`{player.DisplayName} теперь разработчик в Qazaq Soft!`, "big")
+		say(player, "Жанель", `Құттықтаймын! Добро пожаловать в команду Qazaq Soft.\nЗа каждую задачу платим {Logic.money(Logic.itPay(state, true))}. После 30 задач — повышение до Middle.`)
 	else
 		state.interviewDay = state.day
 		say(player, "Жанель", "Пока не хватает знаний. Подготовься и приходи завтра.")
@@ -1694,7 +1922,7 @@ function actions.itWork(player, session)
 	end
 	local wait = onCooldown(session, "it", Config.IT_COOLDOWN)
 	if wait > 0 then
-		say(player, "Qazaq Soft", `Новая задача появится через {wait} мин. игрового времени.`)
+		say(player, "Qazaq Soft", `Новая задача появится через {math.ceil(wait * Config.SECONDS_PER_GAME_MINUTE)} сек.`)
 		return
 	end
 	if not spend(session, Config.IT_ENERGY) then
@@ -1703,17 +1931,41 @@ function actions.itWork(player, session)
 	end
 	session.cooldowns.it = totalMinutes
 	local question = Questions.code(rng)
-	local answer = ask(player, "Рабочая задача", question.text, question.options)
-	local pay = if answer == question.answer then Config.IT_PAY else Config.IT_PAY_FAIL
+	local rankBefore = Logic.itRank(state)
+	local answer = ask(player, `Рабочая задача · {rankBefore.name}`, question.text, question.options)
+	local success = answer == question.answer
+	local pay = Logic.itPay(state, success)
 	state.money += pay
 	state.itTasks += 1
-	toast(player, if answer == question.answer then `Задача закрыта! +{Logic.money(pay)}` else `С ошибкой, пришлось переделывать. +{Logic.money(pay)}`)
+	toast(player, if success then `Задача закрыта! +{Logic.money(pay)}` else `С ошибкой, пришлось переделывать. +{Logic.money(pay)}`, if success then "good" else "bad")
+	local rankAfter = Logic.itRank(state)
+	if rankAfter ~= rankBefore then
+		toastAll(`{player.DisplayName} получает повышение: {rankAfter.name}-разработчик!`, "big")
+		say(player, "Qazaq Soft", `Повышение! Теперь ты {rankAfter.name}-разработчик.\nЗа задачу платим {Logic.money(Logic.itPay(state, true))}.`)
+	else
+		local nextRank = nil
+		for _, entry in Config.IT_RANKS do
+			if entry.tasks > state.itTasks then
+				nextRank = entry
+				break
+			end
+		end
+		if nextRank and nextRank.tasks - state.itTasks <= 5 then
+			toast(player, `До повышения до {nextRank.name}: {nextRank.tasks - state.itTasks} задач(и)`)
+		end
+	end
 end
 
 function actions.buyFlat(player, session)
 	local state = session.state
 	if state.ownsFlat then
-		say(player, "ЖК «Есіл»", "Это твой дом. Кровать — в глубине квартиры.")
+		local options = { "Купить мебель", "Перевезти маму в Астану", "Уйти" }
+		local choice = ask(player, "Менеджер", `С новосельем! Мебель: {Logic.furnished(state)} из {#Config.FURNITURE}.`, options)
+		if choice == 1 then
+			actions.shop(player, session, "furniture")
+		elseif choice == 2 then
+			actions.moveMom(player, session)
+		end
 		return
 	end
 	if state.money < Config.FLAT_PRICE then
@@ -1728,10 +1980,33 @@ function actions.buyFlat(player, session)
 	state.ownsFlat = true
 	state.debt = 0
 	FadeEvent:FireClient(player, "Ключи у тебя в руках!", 3)
-	for _, other in Players:GetPlayers() do
-		toast(other, `{player.DisplayName}: своя квартира на левом берегу!`)
+	toastAll(`{player.DisplayName}: своя квартира на левом берегу!`, "big")
+	say(player, "Астана: Жаңа өмір", `Всё началось с одной сумки, а теперь у тебя свой дом в столице.\nДней в Астане: {state.day}. Құттықтаймыз!\n\nДальше: обустрой квартиру и перевези маму в Астану.`)
+end
+
+function actions.moveMom(player, session)
+	local state = session.state
+	if state.momMoved then
+		say(player, "Мама", "Балам, я так горжусь тобой! Чай уже на столе.")
+		return
 	end
-	say(player, "Астана: Жаңа өмір", `Всё началось с одной сумки, а теперь у тебя свой дом в столице.\nДней в Астане: {state.day}. Құттықтаймыз!`)
+	if Logic.furnished(state) < #Config.FURNITURE then
+		say(player, "Менеджер", `Сначала обустрой квартиру: мебель {Logic.furnished(state)} из {#Config.FURNITURE}. Маме нужен уют!`)
+		return
+	end
+	if state.money < Config.MOM_PRICE then
+		say(player, "Менеджер", `Переезд, билеты и подарки — {Logic.money(Config.MOM_PRICE)}.\nУ тебя: {Logic.money(state.money)}. Осталось {Logic.money(Config.MOM_PRICE - state.money)}.`)
+		return
+	end
+	local choice = ask(player, "Мама", `Балам, ты правда хочешь, чтобы я переехала к тебе? Это {Logic.money(Config.MOM_PRICE)}.`, { "Да, мама, приезжай!", "Чуть позже" })
+	if choice ~= 1 or state.money < Config.MOM_PRICE then
+		return
+	end
+	state.money -= Config.MOM_PRICE
+	state.momMoved = true
+	FadeEvent:FireClient(player, "Поезд прибывает на вокзал Астаны…", 3)
+	toastAll(`{player.DisplayName}: мама переехала в Астану!`, "big")
+	say(player, "Конец истории", `Мама обнимает тебя на перроне.\nОдна сумка, мороз, курьерские заказы — и вот у вас общий дом в столице.\nДней в Астане: {state.day}. Рақмет за игру!`)
 end
 
 function actions.bus(player, session, arg)
@@ -1750,7 +2025,7 @@ function actions.bus(player, session, arg)
 		return
 	end
 	if session.state.money < Config.BUS_FARE then
-		toast(player, "Не хватает на проезд.")
+		toast(player, "Не хватает на проезд.", "bad")
 		return
 	end
 	session.state.money -= Config.BUS_FARE
@@ -1791,17 +2066,55 @@ end
 for _, prompt in World.prompts do
 	prompt.Triggered:Connect(function(player: Player)
 		local action = actions[prompt:GetAttribute("Action")]
-		if action then
+		if not action then
+			return
+		end
+		-- защита от читов: кнопку должен нажать игрок, который стоит рядом
+		local root = rootOf(player)
+		local holder = prompt.Parent
+		if not root or not holder or not holder:IsA("BasePart") then
+			return
+		end
+		if (root.Position - holder.Position).Magnitude > prompt.MaxActivationDistance + 8 then
+			return
+		end
+		flow(player, function(who, session)
+			action(who, session, prompt:GetAttribute("Arg"))
+		end)
+	end)
+end
+
+-- Только в Studio: запуск действий без нажатия кнопок, для автопроверок через MCP.
+-- Объект лежит в ServerStorage, клиенты до него не дотягиваются; в опубликованной игре его нет.
+if IS_STUDIO then
+	local dev = Instance.new("BindableEvent")
+	dev.Name = "AstanaDevTrigger"
+	dev.Event:Connect(function(player: Player, action: string, arg: string?)
+		local session = sessions[player]
+		if action == "devGrant" and session then
+			-- деньги и уровни для проверки поздней игры
+			session.state.money += tonumber(arg) or 0
+			session.state.kazXp = math.max(session.state.kazXp, 300)
+			session.state.codeXp = math.max(session.state.codeXp, 300)
+			session.state.deliveries = math.max(session.state.deliveries, 1)
+			if arg == "hire" then
+				session.state.hired = true
+			end
+			send(player)
+			return
+		end
+		local run = actions[action]
+		if run then
 			flow(player, function(who, session)
-				action(who, session, prompt:GetAttribute("Arg"))
+				run(who, session, arg)
 			end)
 		end
 	end)
+	dev.Parent = game:GetService("ServerStorage")
 end
 
 local function faint(player: Player, session: Session, reason: string)
 	session.busy = true
-	session.target = nil
 	task.spawn(function()
 		local state = session.state
 		FadeEvent:FireClient(player, if reason == "cold" then "Мороз взял своё: ты теряешь сознание…" else "Силы кончились: ты теряешь сознание…", 4)
@@ -1810,21 +2123,44 @@ local function faint(player: Player, session: Session, reason: string)
 		if hospital then
 			teleport(player, Vector3.new(hospital.x, 4, hospital.z))
 		end
+		local first = state.faints == 0
 		local bill = Logic.faint(state)
+		if session.target then
+			-- заказ не пропадает: путь просто стал длиннее
+			session.target.startedAt = os.clock()
+		end
 		session.busy = false
 		send(player)
 		flow(player, function()
-			say(player, "Больница", `Ты приходишь в себя в больнице. Врач говорит: «Ешь вовремя, высыпайся и одевайся теплее».\nСчёт за помощь: {Logic.money(bill)}.`)
+			local billText = if first then "Первый раз лечим бесплатно." else `Счёт за помощь: {Logic.money(bill)}.`
+			say(player, "Больница", `Ты приходишь в себя в больнице. Врач говорит: «Ешь вовремя, высыпайся и одевайся теплее».\n{billText}`)
 		end)
 	end)
 end
 
-local function warn1(player: Player, session: Session, key: string, value: number, text: string)
-	if value < 25 and not session.warned[key] then
+local function warn1(player: Player, session: Session, key: string, value: number, text: string, below: number?)
+	local limit = below or 25
+	if value < limit and not session.warned[key] then
 		session.warned[key] = true
-		toast(player, text)
-	elseif value > 45 then
+		toast(player, text, "bad")
+	elseif value > limit + 20 then
 		session.warned[key] = nil
+	end
+end
+
+-- Вехи на пути к квартире: каждые 10 % — маленький праздник.
+local function milestones(player: Player, session: Session)
+	local state = session.state
+	if state.ownsFlat or not state.hired then
+		return
+	end
+	local percent = math.floor(math.clamp(state.money / Config.FLAT_PRICE, 0, 1) * 10) * 10
+	if percent > state.milestone and percent < 100 then
+		state.milestone = percent
+		toast(player, `Квартира уже на {percent}% ближе! Так держать.`, "big")
+	elseif percent >= 100 and state.milestone < 100 then
+		state.milestone = 100
+		toast(player, "Денег хватает на квартиру! Беги в ЖК «Есіл».", "big")
 	end
 end
 
@@ -1832,45 +2168,135 @@ local function step(player: Player, session: Session, minutes: number, newDay: b
 	local root = rootOf(player)
 	local state = session.state
 	if newDay then
-		toast(player, Logic.newDay(state))
+		toast(player, Logic.newDay(state), if state.debt > 0 then "bad" else nil)
 	end
-	if not root or session.busy then
+	if not root then
 		return
 	end
 	session.indoors = World.indoor(root.Position) ~= nil
+	-- потребности идут и во время диалога, но обморок подождёт, пока игрок не закончит
 	local reason = Logic.tick(state, minutes, { indoors = session.indoors, temp = temperature(), buran = buran })
+	if session.busy then
+		return
+	end
 	if reason then
 		faint(player, session, reason)
 		return
 	end
+	if not session.indoors then
+		warn1(player, session, "chill", state.warmth, if Logic.warmRating(state) == 0 then "Холодает! Погрейся в любом здании, а лучше купи пуховик на базаре." else "Холодает. Загляни погреться в любое здание.", 50)
+	end
 	warn1(player, session, "warmth", state.warmth, "Ты замерзаешь! Зайди в любое здание погреться.")
 	warn1(player, session, "food", state.food, "Очень хочется есть. Поешь на базаре или в донерной.")
 	warn1(player, session, "energy", state.energy, "Силы на исходе. Пора поспать дома.")
+	milestones(player, session)
 
 	local target = session.target
 	if target then
 		local flat = Vector3.new(target.x, root.Position.Y, target.z)
 		if (flat - root.Position).Magnitude < 10 then
+			-- защита от телепорта: дойти быстрее, чем позволяет скорость, нельзя
+			local fastest = target.distance / (Logic.walkSpeed(state) * 1.6)
+			if os.clock() - target.startedAt < fastest then
+				return
+			end
 			session.target = nil
 			state.money += target.pay
 			state.deliveries += 1
 			state.energy = math.max(0, state.energy - Config.COURIER_ENERGY)
-			toast(player, `Посылка доставлена: {target.name}. +{Logic.money(target.pay)}`)
+			toast(player, `Посылка доставлена: {target.name}. +{Logic.money(target.pay)}`, "good")
+			if state.deliveries == 10 then
+				toast(player, "10 доставок! Теперь ты настоящий курьер.", "big")
+			end
+			-- сразу следующий заказ отсюда же: не нужно идти обратно к Даурену
+			task.delay(1.5, function()
+				flow(player, function(who, s)
+					if s.target == nil and s.state.energy >= Config.COURIER_ENERGY then
+						actions.courier(who, s)
+					end
+				end)
+			end)
 		end
 	end
 end
 
-local function save(player: Player)
-	local session = sessions[player]
+-- ---------- сохранение ----------
+-- Запись: { state = ..., lock = { job, t } }. Блокировка не даёт двум серверам затереть друг друга,
+-- если игрок быстро перешёл на другой сервер.
+
+local pendingSaves = 0
+
+local function lockedByOther(old: any): boolean
+	if type(old) ~= "table" or type(old.lock) ~= "table" then
+		return false
+	end
+	local lockTime = tonumber(old.lock.t) or 0
+	return old.lock.job ~= game.JobId and os.time() - lockTime < Config.LOCK_SECONDS
+end
+
+local function save(player: Player, session: Session?, release: boolean?)
 	if not session or not session.canSave or not store then
 		return
 	end
-	local ok, err = pcall(function()
-		(store :: DataStore):SetAsync("p_" .. player.UserId, session.state)
-	end)
-	if not ok then
-		warn("Не удалось сохранить игру: " .. tostring(err))
+	pendingSaves += 1
+	local state = session.state
+	for attempt = 1, 3 do
+		local ok, err = pcall(function()
+			(store :: DataStore):UpdateAsync("p_" .. player.UserId, function(old)
+				if lockedByOther(old) then
+					return nil -- игрок уже на другом сервере: там данные свежее
+				end
+				return { state = state, lock = if release then nil else { job = game.JobId, t = os.time() } }, { player.UserId }
+			end)
+		end)
+		if ok then
+			break
+		end
+		if attempt == 3 then
+			warn("Не удалось сохранить игру: " .. tostring(err))
+		else
+			task.wait(attempt * 2)
+		end
 	end
+	pendingSaves -= 1
+end
+
+-- Загружает сохранение и ставит блокировку. Возвращает: удалось ли, сохранённое состояние (или nil у новичка).
+local function load(player: Player): (boolean, any)
+	if not store then
+		return false, nil
+	end
+	for attempt = 1, 5 do
+		local busyElsewhere = false
+		local result: any = nil
+		local ok, err = pcall(function()
+			(store :: DataStore):UpdateAsync("p_" .. player.UserId, function(old)
+				if lockedByOther(old) then
+					busyElsewhere = true
+					return nil
+				end
+				busyElsewhere = false
+				if type(old) == "table" then
+					result = if type(old.state) == "table" then old.state else old
+				else
+					result = nil
+				end
+				return { state = result, lock = { job = game.JobId, t = os.time() } }, { player.UserId }
+			end)
+		end)
+		if ok and not busyElsewhere then
+			return true, result
+		end
+		if attempt == 5 then
+			warn("Не удалось загрузить сохранение: " .. tostring(if ok then "занято другим сервером" else err))
+		else
+			task.wait(if busyElsewhere then 4 else attempt * 2)
+		end
+		if player.Parent ~= Players then
+			return false, nil
+		end
+	end
+	return false, nil
 end
 
 local function onCharacter(player: Player, character: Model)
@@ -1882,24 +2308,39 @@ local function onCharacter(player: Player, character: Model)
 	if humanoid and humanoid:IsA("Humanoid") then
 		humanoid.WalkSpeed = Logic.walkSpeed(session.state)
 	end
+	-- звание над головой; висит на HumanoidRootPart: голову R15 игра подменяет при загрузке аватара
+	local anchor = character:WaitForChild("HumanoidRootPart", 10)
+	if anchor and anchor:IsA("BasePart") then
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "Title"
+		gui.Size = UDim2.fromOffset(200, 24)
+		gui.StudsOffset = Vector3.new(0, 4.4, 0)
+		gui.MaxDistance = 80
+		gui.LightInfluence = 0
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 15
+		label.TextColor3 = Color3.fromRGB(255, 214, 110)
+		label.TextStrokeTransparency = 0.3
+		label.AutoLocalize = false
+		label.Text = Logic.title(session.state)
+		label.Parent = gui
+		gui.Parent = anchor
+		session.tag = label
+	end
 	send(player)
 end
 
 local function onPlayer(player: Player)
-	local saved = nil
-	local canSave = false
-	if store then
-		local ok, result = pcall(function()
-			return (store :: DataStore):GetAsync("p_" .. player.UserId)
-		end)
-		if ok then
-			saved = result
-			canSave = true
-		else
-			warn("Не удалось загрузить сохранение: " .. tostring(result))
-		end
-	end
+	local loaded, saved = load(player)
 	if player.Parent ~= Players then
+		return
+	end
+	if store and not loaded and not IS_STUDIO then
+		-- без загрузки прогресс потом затёр бы старое сохранение: лучше попросить зайти позже
+		player:Kick("Не удалось загрузить сохранение. Зайди через минуту — прогресс цел.")
 		return
 	end
 
@@ -1908,9 +2349,9 @@ local function onPlayer(player: Player)
 	local money = Instance.new("IntValue")
 	money.Name = "Тенге"
 	money.Parent = stats
-	local day = Instance.new("IntValue")
-	day.Name = "День"
-	day.Parent = stats
+	local title = Instance.new("StringValue")
+	title.Name = "Статус"
+	title.Parent = stats
 	stats.Parent = player
 
 	local state = Logic.sanitize(saved)
@@ -1921,11 +2362,12 @@ local function onPlayer(player: Player)
 		waiting = nil,
 		target = nil,
 		cooldowns = {},
-		canSave = canSave,
+		canSave = loaded,
 		indoors = false,
 		warned = {},
 		money = money,
-		day = day,
+		title = title,
+		tag = nil,
 	}
 	sessions[player] = session
 
@@ -1935,15 +2377,25 @@ local function onPlayer(player: Player)
 	if player.Character then
 		task.spawn(onCharacter, player, player.Character)
 	end
+	local today = math.floor(os.time() / 86400)
+	local gift = nil
+	if saved == nil then
+		-- новичок: первый день серии засчитан, подарки — со следующего входа
+		state.lastDaily = today
+		state.streak = 1
+	else
+		gift = Logic.daily(state, today)
+	end
 	send(player)
 
 	if saved == nil then
 		task.delay(3, function()
 			flow(player, function()
-				say(player, "Астана: Жаңа өмір", `Ты в столице: с одной сумкой и {Logic.money(Config.START_MONEY)}.\nНа улице мороз: следи за теплом, едой и силами.\nКомната у Гульнар-апай стоит {Logic.money(Config.RENT)} в день. Подсказка вверху экрана скажет, что делать дальше.`)
-				say(player, "С чего начать", "1. Иди в жёлтое здание «Курьерская служба» и возьми заказ.\n2. Купи пуховик на базаре.\n3. Спи в комнате у Гульнар-апай — серый дом рядом с вокзалом.\nВ зданиях тепло. Подходи к людям и предметам и нажимай кнопку действия.")
+				say(player, "Астана: Жаңа өмір", `Ты в столице: с одной сумкой и {Logic.money(state.money)}.\nМечта — своя квартира на левом берегу.\n\nИди за бирюзовой меткой: она всегда ведёт к следующей цели. На улице мороз — в зданиях тепло.`)
 			end)
 		end)
+	elseif gift then
+		toast(player, `С возвращением! Подарок за вход: +{Logic.money(gift)} · серия {state.streak} дн.`, "big")
 	else
 		toast(player, `С возвращением! День {state.day} в Астане.`)
 	end
@@ -1955,21 +2407,27 @@ for _, player in Players:GetPlayers() do
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	save(player)
+	local session = sessions[player]
 	sessions[player] = nil
+	save(player, session, true)
 end)
 
 game:BindToClose(function()
-	for _, player in Players:GetPlayers() do
-		save(player)
+	for player, session in sessions do
+		task.spawn(save, player, session, true)
+	end
+	-- ждём, пока допишутся все сохранения, включая начатые при выходе игроков
+	local deadline = os.clock() + 25
+	while pendingSaves > 0 and os.clock() < deadline do
+		task.wait(0.1)
 	end
 end)
 
 task.spawn(function()
 	while true do
 		task.wait(120)
-		for _, player in Players:GetPlayers() do
-			save(player)
+		for player, session in sessions do
+			task.spawn(save, player, session)
 		end
 	end
 end)
@@ -1990,12 +2448,19 @@ task.spawn(function()
 		Lighting.ClockTime = clock / 60
 		local newDay = before < rentMinute and clock >= rentMinute
 
+		if not buran and not buranWarned and totalMinutes >= buranSwitchAt - 40 then
+			buranWarned = true
+			for _, player in Players:GetPlayers() do
+				toast(player, "Синоптики: скоро буран! Закончи дела на улице и держись ближе к зданиям.", "bad")
+			end
+		end
 		if totalMinutes >= buranSwitchAt then
 			buran = not buran
+			buranWarned = false
 			buranSwitchAt = totalMinutes + (if buran then rng:NextInteger(120, 240) else rng:NextInteger(700, 1500))
 			World.setBuran(buran)
 			for _, player in Players:GetPlayers() do
-				toast(player, if buran then "Начинается буран! Мороз усиливается — прячься в тепло." else "Буран стих.")
+				toast(player, if buran then "Начинается буран! Мороз усиливается — прячься в тепло." else "Буран стих.", if buran then "bad" else nil)
 			end
 		end
 
@@ -2063,12 +2528,39 @@ local function text(props: { [string]: any }, parent: Instance): TextLabel
 		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextWrapped = true,
+		AutoLocalize = false,
 	}
 	for key, value in props do
 		base[key] = value
 	end
 	return make("TextLabel", base, parent)
 end
+
+-- Звуки. Все — публичные звуки Roblox, проверены в Studio.
+local SoundService = game:GetService("SoundService")
+local SOUNDS = {
+	coin = { 17208380755, 0.55 }, -- деньги пришли
+	good = { 15675043410, 0.5 }, -- верный ответ, успех
+	bad = { 17208353912, 0.45 }, -- ошибка, не хватает
+	toast = { 15675055424, 0.25 }, -- обычное сообщение
+	click = { 15675059323, 0.4 }, -- нажатие кнопки
+	open = { 17208204604, 0.4 }, -- открылся диалог
+	win = { 12222253, 0.6 }, -- новый уровень, большая цель
+	whoosh = { 15674975792, 0.35 }, -- затемнение экрана
+}
+local sounds: { [string]: Sound } = {}
+for name, info in SOUNDS do
+	sounds[name] = make("Sound", { Name = name, SoundId = "rbxassetid://" .. info[1], Volume = info[2] }, SoundService)
+end
+local function sfx(name: string)
+	local sound = sounds[name]
+	if sound then
+		sound.TimePosition = 0
+		sound:Play()
+	end
+end
+local music = make("Sound", { Name = "Music", SoundId = "rbxassetid://15675069601", Volume = 0.12, Looped = true }, SoundService)
+music:Play()
 
 local screen = make("ScreenGui", { Name = "Astana", ResetOnSpawn = false, DisplayOrder = 5 }, playerGui)
 local scale = make("UIScale", {}, screen)
@@ -2091,7 +2583,7 @@ end
 -- Панель слева: деньги, время, шкалы.
 local hud = make("Frame", {
 	Position = UDim2.fromOffset(10, 8),
-	Size = UDim2.fromOffset(230, 150),
+	Size = UDim2.fromOffset(230, 172),
 	BackgroundColor3 = PANEL,
 	BackgroundTransparency = 0.15,
 	BorderSizePixel = 0,
@@ -2112,6 +2604,15 @@ end
 local warmthBar = bar("Тепло", 58, Color3.fromRGB(255, 140, 80))
 local foodBar = bar("Еда", 80, Color3.fromRGB(120, 210, 110))
 local energyBar = bar("Силы", 102, ACCENT)
+-- Прогресс к большой цели (квартира, мебель, мама): видно, что каждое действие приближает мечту.
+local progressName = text({ Position = UDim2.fromOffset(12, 148), Size = UDim2.fromOffset(100, 18), TextSize = 13, TextColor3 = GOLD, Text = "Квартира" }, hud)
+local progressBack = make("Frame", { Position = UDim2.fromOffset(112, 152), Size = UDim2.fromOffset(70, 10), BackgroundColor3 = INK, BorderSizePixel = 0 }, hud)
+round(progressBack, 5)
+local progressFill = make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = GOLD, BorderSizePixel = 0 }, progressBack)
+round(progressFill, 5)
+local progressLabel = text({ Position = UDim2.fromOffset(186, 148), Size = UDim2.fromOffset(40, 18), TextSize = 13, TextColor3 = GOLD, Text = "0%" }, hud)
+local WARM_COLOR = Color3.fromRGB(255, 140, 80)
+local outdoorsCold = false
 
 -- Подсказка «что делать дальше» сверху по центру.
 local goalFrame = make("Frame", {
@@ -2125,24 +2626,35 @@ local goalFrame = make("Frame", {
 round(goalFrame, 12)
 local goalLabel = text({ Position = UDim2.fromOffset(12, 2), Size = UDim2.new(1, -24, 1, -4), TextSize = 14, Text = "" }, goalFrame)
 
--- Всплывающие сообщения.
+-- Всплывающие сообщения: отдельный слой поверх диалога, чтобы «Дұрыс!» было видно во время урока.
+local toastGui = make("ScreenGui", { Name = "AstanaToasts", ResetOnSpawn = false, DisplayOrder = 15 }, playerGui)
+local toastScale = make("UIScale", { Scale = scale.Scale }, toastGui)
+table.insert(scales, toastScale)
 local toasts = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0),
 	Position = UDim2.new(0.5, 60, 0, 60),
 	Size = UDim2.fromOffset(380, 200),
 	BackgroundTransparency = 1,
-}, screen)
+}, toastGui)
 make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, toasts)
 local toastOrder = 0
 
-local function toast(message: string)
+local TOAST_COLORS = {
+	good = Color3.fromRGB(28, 84, 58),
+	bad = Color3.fromRGB(110, 36, 40),
+	big = Color3.fromRGB(120, 92, 20),
+}
+
+local function toast(message: string, kind: string?)
+	sfx(if kind == "good" then "good" elseif kind == "bad" then "bad" elseif kind == "big" then "win" else "toast")
 	toastOrder += 1
 	local label = text({
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 0.1,
-		BackgroundColor3 = INK,
-		TextSize = 15,
+		BackgroundColor3 = (kind and TOAST_COLORS[kind]) or INK,
+		TextSize = if kind == "big" then 17 else 15,
+		Font = if kind == "big" then Enum.Font.GothamBold else Enum.Font.GothamMedium,
 		Text = message,
 		LayoutOrder = toastOrder,
 	}, toasts)
@@ -2200,7 +2712,9 @@ local optionList = make("ScrollingFrame", {
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
 	LayoutOrder = 3,
 }, dialog)
-make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, optionList)
+local listLayout = make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, optionList)
+-- Для мини-игры бариста кнопки идут сеткой в два столбца, чтобы все ингредиенты помещались на телефоне.
+local gridLayout = make("UIGridLayout", { CellSize = UDim2.new(0.5, -8, 0, 44), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 local closeButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -8, 0, 8),
@@ -2248,6 +2762,7 @@ local function optionButton(label: string, order: number, onClick: () -> ()): Te
 		BackgroundColor3 = Color3.fromRGB(52, 66, 94),
 		BorderSizePixel = 0,
 		AutoButtonColor = true,
+		AutoLocalize = false,
 		Font = Enum.Font.GothamMedium,
 		TextSize = 16,
 		TextColor3 = WHITE,
@@ -2257,12 +2772,18 @@ local function optionButton(label: string, order: number, onClick: () -> ()): Te
 	}, optionList)
 	round(button, 10)
 	make("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, button)
-	button.Activated:Connect(onClick)
+	button.Activated:Connect(function()
+		sfx("click")
+		onClick()
+	end)
 	return button
 end
 
-local function fitOptions(count: number)
-	optionList.Size = UDim2.new(1, 0, 0, math.min(count * 48, 250))
+local function fitOptions(count: number, grid: boolean?)
+	listLayout.Parent = if grid then nil else optionList
+	gridLayout.Parent = if grid then optionList else nil
+	local rows = if grid then math.ceil(count / 2) else count
+	optionList.Size = UDim2.new(1, 0, 0, math.min(rows * (if grid then 50 else 48), 250))
 end
 
 local function showChoice(data: any)
@@ -2313,7 +2834,7 @@ local function showSequence(data: any)
 				end
 			end)
 		end
-		fitOptions(#names)
+		fitOptions(#names, true)
 	end)
 end
 
@@ -2327,6 +2848,7 @@ DialogEvent.OnClientEvent:Connect(function(data: any)
 	closeDialog()
 	currentId = data.id
 	shade.Visible = true
+	sfx("open")
 	if data.kind == "sequence" then
 		showSequence(data)
 	else
@@ -2335,6 +2857,7 @@ DialogEvent.OnClientEvent:Connect(function(data: any)
 end)
 
 closeButton.Activated:Connect(function()
+	sfx("click")
 	reply(nil)
 end)
 
@@ -2347,6 +2870,7 @@ local fadeToken = 0
 FadeEvent.OnClientEvent:Connect(function(message: string, seconds: number)
 	fadeToken += 1
 	local token = fadeToken
+	sfx("whoosh")
 	fadeLabel.Text = message
 	fadeFrame.Visible = true
 	TweenService:Create(fadeFrame, TweenInfo.new(0.4), { BackgroundTransparency = 0 }):Play()
@@ -2379,12 +2903,14 @@ local marker = make("Part", {
 local markerGui = make("BillboardGui", { Size = UDim2.fromOffset(260, 44), StudsOffset = Vector3.new(0, 0, 0), AlwaysOnTop = true, LightInfluence = 0 }, marker)
 local markerLabel = text({ Size = UDim2.fromScale(1, 1), TextSize = 16, Font = Enum.Font.GothamBold, TextColor3 = GOLD, TextStrokeTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Center, Text = "" }, markerGui)
 local target: { x: number, z: number, name: string }? = nil
+local isGuide = false
+local GUIDE = Color3.fromRGB(90, 230, 240)
 
 -- Снег.
-local snow = make("Part", { Name = "Snow", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.new(150, 1, 150) }, workspace)
+local snow = make("Part", { Name = "Snow", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.new(90, 1, 90) }, workspace)
 local flakes = make("ParticleEmitter", {
-	Rate = 220,
-	Lifetime = NumberRange.new(5, 7),
+	Rate = 140,
+	Lifetime = NumberRange.new(3, 4),
 	Speed = NumberRange.new(12, 18),
 	EmissionDirection = Enum.NormalId.Bottom,
 	SpreadAngle = Vector2.new(12, 12),
@@ -2395,22 +2921,90 @@ local flakes = make("ParticleEmitter", {
 	Acceleration = Vector3.new(3, 0, 1),
 }, snow)
 
+-- Всплывающее «+2 200 ₸» рядом с деньгами и короткий «пульс» суммы.
+local moneyPulse = make("UIScale", {}, moneyLabel)
+local lastMoney: number? = nil
+
+local function moneyPop(delta: number)
+	local label = text({
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromOffset(236, 22),
+		Size = UDim2.fromOffset(170, 28),
+		Font = Enum.Font.GothamBold,
+		TextSize = 22,
+		TextColor3 = if delta > 0 then Color3.fromRGB(130, 235, 140) else Color3.fromRGB(255, 125, 115),
+		TextStrokeTransparency = 0.35,
+		Text = (if delta > 0 then "+" else "") .. Logic.money(delta),
+	}, hud)
+	TweenService:Create(label, TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.fromOffset(236, -6),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+	task.delay(1.5, function()
+		label:Destroy()
+	end)
+	if delta > 0 then
+		moneyPulse.Scale = 1.25
+		TweenService:Create(moneyPulse, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end
+end
+
+-- Кнопка музыки.
+local musicButton = make("TextButton", {
+	Position = UDim2.fromOffset(10, 186),
+	Size = UDim2.fromOffset(44, 36),
+	BackgroundColor3 = PANEL,
+	BackgroundTransparency = 0.15,
+	BorderSizePixel = 0,
+	Font = Enum.Font.GothamBold,
+	TextSize = 18,
+	TextColor3 = WHITE,
+	Text = "♪",
+}, screen)
+round(musicButton, 10)
+musicButton.Activated:Connect(function()
+	music.Volume = if music.Volume > 0 then 0 else 0.12
+	musicButton.TextTransparency = if music.Volume > 0 then 0 else 0.6
+	sfx("click")
+end)
+
 local function ratio(value: number): UDim2
 	return UDim2.fromScale(math.clamp(value / 100, 0, 1), 1)
 end
 
 StateEvent.OnClientEvent:Connect(function(state: any)
 	moneyLabel.Text = Logic.money(state.money)
+	if lastMoney and state.money ~= lastMoney then
+		moneyPop(state.money - lastMoney)
+		if state.money > lastMoney then
+			sfx("coin")
+		end
+	end
+	lastMoney = state.money
 	local weather = if state.buran then "буран" else (if state.indoors then "в тепле" else "мороз")
 	timeLabel.Text = `День {state.day} · {state.clock} · {state.temp}° · {weather}`
 	skillLabel.Text = `Казахский {state.kaz} · Код {state.code}` .. (if state.debt > 0 then ` · долг {Logic.money(state.debt)}` else "")
 	warmthBar.Size = ratio(state.warmth)
+	outdoorsCold = not state.indoors and state.warmth < 35
+	if not outdoorsCold then
+		warmthBar.BackgroundColor3 = WARM_COLOR
+	end
+	local share = math.clamp(state.progress or 0, 0, 1)
+	progressName.Text = state.progressName or "Квартира"
+	progressFill.Size = UDim2.fromScale(share, 1)
+	progressLabel.Text = `{math.floor(share * 100)}%`
 	foodBar.Size = ratio(state.food)
 	energyBar.Size = ratio(state.energy)
 	goalLabel.Text = "Цель: " .. state.goal
 
-	target = state.target
+	-- Жёлтая метка — заказ курьера, бирюзовая — следующая цель из подсказки.
+	isGuide = state.target == nil and state.guide ~= nil
+	target = state.target or state.guide
 	if target then
+		local color = if isGuide then GUIDE else GOLD
+		marker.Color = color
+		markerLabel.TextColor3 = color
 		marker.CFrame = CFrame.new(target.x, 30, target.z) * CFrame.Angles(0, 0, math.rad(90))
 		marker.Parent = workspace
 	else
@@ -2418,7 +3012,7 @@ StateEvent.OnClientEvent:Connect(function(state: any)
 	end
 
 	flakes.Enabled = not state.indoors
-	flakes.Rate = if state.buran then 900 else 220
+	flakes.Rate = if state.buran then 350 else 140
 	flakes.Acceleration = if state.buran then Vector3.new(40, 0, 14) else Vector3.new(3, 0, 1)
 end)
 
@@ -2431,6 +3025,11 @@ RunService.RenderStepped:Connect(function(dt: number)
 		return
 	end
 	snow.CFrame = CFrame.new(camera.CFrame.Position + Vector3.new(0, 40, 0))
+	if outdoorsCold then
+		-- шкала тепла мигает красным: пора в тепло
+		local pulse = (math.sin(os.clock() * 7) + 1) / 2
+		warmthBar.BackgroundColor3 = WARM_COLOR:Lerp(Color3.fromRGB(255, 40, 40), pulse)
+	end
 	elapsed += dt
 	if elapsed < 0.2 then
 		return
@@ -2441,7 +3040,11 @@ RunService.RenderStepped:Connect(function(dt: number)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if goal and root and root:IsA("BasePart") then
 		local distance = (Vector3.new(goal.x, root.Position.Y, goal.z) - root.Position).Magnitude
-		markerLabel.Text = `▼ {goal.name} · {math.floor(distance / 3.5)} м`
+		-- метку цели прячем, когда игрок уже пришёл
+		local near = isGuide and distance < 22
+		marker.Transparency = if near then 1 else 0.45
+		markerGui.Enabled = not near
+		markerLabel.Text = if isGuide then `▼ Цель: {goal.name} · {math.floor(distance / 3.5)} м` else `▼ {goal.name} · {math.floor(distance / 3.5)} м`
 	end
 end)
 ]]></ProtectedString></Properties>

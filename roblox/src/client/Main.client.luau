@@ -45,12 +45,39 @@ local function text(props: { [string]: any }, parent: Instance): TextLabel
 		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextWrapped = true,
+		AutoLocalize = false,
 	}
 	for key, value in props do
 		base[key] = value
 	end
 	return make("TextLabel", base, parent)
 end
+
+-- Звуки. Все — публичные звуки Roblox, проверены в Studio.
+local SoundService = game:GetService("SoundService")
+local SOUNDS = {
+	coin = { 17208380755, 0.55 }, -- деньги пришли
+	good = { 15675043410, 0.5 }, -- верный ответ, успех
+	bad = { 17208353912, 0.45 }, -- ошибка, не хватает
+	toast = { 15675055424, 0.25 }, -- обычное сообщение
+	click = { 15675059323, 0.4 }, -- нажатие кнопки
+	open = { 17208204604, 0.4 }, -- открылся диалог
+	win = { 12222253, 0.6 }, -- новый уровень, большая цель
+	whoosh = { 15674975792, 0.35 }, -- затемнение экрана
+}
+local sounds: { [string]: Sound } = {}
+for name, info in SOUNDS do
+	sounds[name] = make("Sound", { Name = name, SoundId = "rbxassetid://" .. info[1], Volume = info[2] }, SoundService)
+end
+local function sfx(name: string)
+	local sound = sounds[name]
+	if sound then
+		sound.TimePosition = 0
+		sound:Play()
+	end
+end
+local music = make("Sound", { Name = "Music", SoundId = "rbxassetid://15675069601", Volume = 0.12, Looped = true }, SoundService)
+music:Play()
 
 local screen = make("ScreenGui", { Name = "Astana", ResetOnSpawn = false, DisplayOrder = 5 }, playerGui)
 local scale = make("UIScale", {}, screen)
@@ -73,7 +100,7 @@ end
 -- Панель слева: деньги, время, шкалы.
 local hud = make("Frame", {
 	Position = UDim2.fromOffset(10, 8),
-	Size = UDim2.fromOffset(230, 150),
+	Size = UDim2.fromOffset(230, 172),
 	BackgroundColor3 = PANEL,
 	BackgroundTransparency = 0.15,
 	BorderSizePixel = 0,
@@ -94,6 +121,15 @@ end
 local warmthBar = bar("Тепло", 58, Color3.fromRGB(255, 140, 80))
 local foodBar = bar("Еда", 80, Color3.fromRGB(120, 210, 110))
 local energyBar = bar("Силы", 102, ACCENT)
+-- Прогресс к большой цели (квартира, мебель, мама): видно, что каждое действие приближает мечту.
+local progressName = text({ Position = UDim2.fromOffset(12, 148), Size = UDim2.fromOffset(100, 18), TextSize = 13, TextColor3 = GOLD, Text = "Квартира" }, hud)
+local progressBack = make("Frame", { Position = UDim2.fromOffset(112, 152), Size = UDim2.fromOffset(70, 10), BackgroundColor3 = INK, BorderSizePixel = 0 }, hud)
+round(progressBack, 5)
+local progressFill = make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = GOLD, BorderSizePixel = 0 }, progressBack)
+round(progressFill, 5)
+local progressLabel = text({ Position = UDim2.fromOffset(186, 148), Size = UDim2.fromOffset(40, 18), TextSize = 13, TextColor3 = GOLD, Text = "0%" }, hud)
+local WARM_COLOR = Color3.fromRGB(255, 140, 80)
+local outdoorsCold = false
 
 -- Подсказка «что делать дальше» сверху по центру.
 local goalFrame = make("Frame", {
@@ -107,24 +143,35 @@ local goalFrame = make("Frame", {
 round(goalFrame, 12)
 local goalLabel = text({ Position = UDim2.fromOffset(12, 2), Size = UDim2.new(1, -24, 1, -4), TextSize = 14, Text = "" }, goalFrame)
 
--- Всплывающие сообщения.
+-- Всплывающие сообщения: отдельный слой поверх диалога, чтобы «Дұрыс!» было видно во время урока.
+local toastGui = make("ScreenGui", { Name = "AstanaToasts", ResetOnSpawn = false, DisplayOrder = 15 }, playerGui)
+local toastScale = make("UIScale", { Scale = scale.Scale }, toastGui)
+table.insert(scales, toastScale)
 local toasts = make("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0),
 	Position = UDim2.new(0.5, 60, 0, 60),
 	Size = UDim2.fromOffset(380, 200),
 	BackgroundTransparency = 1,
-}, screen)
+}, toastGui)
 make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, toasts)
 local toastOrder = 0
 
-local function toast(message: string)
+local TOAST_COLORS = {
+	good = Color3.fromRGB(28, 84, 58),
+	bad = Color3.fromRGB(110, 36, 40),
+	big = Color3.fromRGB(120, 92, 20),
+}
+
+local function toast(message: string, kind: string?)
+	sfx(if kind == "good" then "good" elseif kind == "bad" then "bad" elseif kind == "big" then "win" else "toast")
 	toastOrder += 1
 	local label = text({
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 0.1,
-		BackgroundColor3 = INK,
-		TextSize = 15,
+		BackgroundColor3 = (kind and TOAST_COLORS[kind]) or INK,
+		TextSize = if kind == "big" then 17 else 15,
+		Font = if kind == "big" then Enum.Font.GothamBold else Enum.Font.GothamMedium,
 		Text = message,
 		LayoutOrder = toastOrder,
 	}, toasts)
@@ -182,7 +229,9 @@ local optionList = make("ScrollingFrame", {
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
 	LayoutOrder = 3,
 }, dialog)
-make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, optionList)
+local listLayout = make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, optionList)
+-- Для мини-игры бариста кнопки идут сеткой в два столбца, чтобы все ингредиенты помещались на телефоне.
+local gridLayout = make("UIGridLayout", { CellSize = UDim2.new(0.5, -8, 0, 44), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 local closeButton = make("TextButton", {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -8, 0, 8),
@@ -230,6 +279,7 @@ local function optionButton(label: string, order: number, onClick: () -> ()): Te
 		BackgroundColor3 = Color3.fromRGB(52, 66, 94),
 		BorderSizePixel = 0,
 		AutoButtonColor = true,
+		AutoLocalize = false,
 		Font = Enum.Font.GothamMedium,
 		TextSize = 16,
 		TextColor3 = WHITE,
@@ -239,12 +289,18 @@ local function optionButton(label: string, order: number, onClick: () -> ()): Te
 	}, optionList)
 	round(button, 10)
 	make("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, button)
-	button.Activated:Connect(onClick)
+	button.Activated:Connect(function()
+		sfx("click")
+		onClick()
+	end)
 	return button
 end
 
-local function fitOptions(count: number)
-	optionList.Size = UDim2.new(1, 0, 0, math.min(count * 48, 250))
+local function fitOptions(count: number, grid: boolean?)
+	listLayout.Parent = if grid then nil else optionList
+	gridLayout.Parent = if grid then optionList else nil
+	local rows = if grid then math.ceil(count / 2) else count
+	optionList.Size = UDim2.new(1, 0, 0, math.min(rows * (if grid then 50 else 48), 250))
 end
 
 local function showChoice(data: any)
@@ -295,7 +351,7 @@ local function showSequence(data: any)
 				end
 			end)
 		end
-		fitOptions(#names)
+		fitOptions(#names, true)
 	end)
 end
 
@@ -309,6 +365,7 @@ DialogEvent.OnClientEvent:Connect(function(data: any)
 	closeDialog()
 	currentId = data.id
 	shade.Visible = true
+	sfx("open")
 	if data.kind == "sequence" then
 		showSequence(data)
 	else
@@ -317,6 +374,7 @@ DialogEvent.OnClientEvent:Connect(function(data: any)
 end)
 
 closeButton.Activated:Connect(function()
+	sfx("click")
 	reply(nil)
 end)
 
@@ -329,6 +387,7 @@ local fadeToken = 0
 FadeEvent.OnClientEvent:Connect(function(message: string, seconds: number)
 	fadeToken += 1
 	local token = fadeToken
+	sfx("whoosh")
 	fadeLabel.Text = message
 	fadeFrame.Visible = true
 	TweenService:Create(fadeFrame, TweenInfo.new(0.4), { BackgroundTransparency = 0 }):Play()
@@ -361,12 +420,14 @@ local marker = make("Part", {
 local markerGui = make("BillboardGui", { Size = UDim2.fromOffset(260, 44), StudsOffset = Vector3.new(0, 0, 0), AlwaysOnTop = true, LightInfluence = 0 }, marker)
 local markerLabel = text({ Size = UDim2.fromScale(1, 1), TextSize = 16, Font = Enum.Font.GothamBold, TextColor3 = GOLD, TextStrokeTransparency = 0.2, TextXAlignment = Enum.TextXAlignment.Center, Text = "" }, markerGui)
 local target: { x: number, z: number, name: string }? = nil
+local isGuide = false
+local GUIDE = Color3.fromRGB(90, 230, 240)
 
 -- Снег.
-local snow = make("Part", { Name = "Snow", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.new(150, 1, 150) }, workspace)
+local snow = make("Part", { Name = "Snow", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.new(90, 1, 90) }, workspace)
 local flakes = make("ParticleEmitter", {
-	Rate = 220,
-	Lifetime = NumberRange.new(5, 7),
+	Rate = 140,
+	Lifetime = NumberRange.new(3, 4),
 	Speed = NumberRange.new(12, 18),
 	EmissionDirection = Enum.NormalId.Bottom,
 	SpreadAngle = Vector2.new(12, 12),
@@ -377,22 +438,90 @@ local flakes = make("ParticleEmitter", {
 	Acceleration = Vector3.new(3, 0, 1),
 }, snow)
 
+-- Всплывающее «+2 200 ₸» рядом с деньгами и короткий «пульс» суммы.
+local moneyPulse = make("UIScale", {}, moneyLabel)
+local lastMoney: number? = nil
+
+local function moneyPop(delta: number)
+	local label = text({
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.fromOffset(236, 22),
+		Size = UDim2.fromOffset(170, 28),
+		Font = Enum.Font.GothamBold,
+		TextSize = 22,
+		TextColor3 = if delta > 0 then Color3.fromRGB(130, 235, 140) else Color3.fromRGB(255, 125, 115),
+		TextStrokeTransparency = 0.35,
+		Text = (if delta > 0 then "+" else "") .. Logic.money(delta),
+	}, hud)
+	TweenService:Create(label, TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.fromOffset(236, -6),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+	task.delay(1.5, function()
+		label:Destroy()
+	end)
+	if delta > 0 then
+		moneyPulse.Scale = 1.25
+		TweenService:Create(moneyPulse, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end
+end
+
+-- Кнопка музыки.
+local musicButton = make("TextButton", {
+	Position = UDim2.fromOffset(10, 186),
+	Size = UDim2.fromOffset(44, 36),
+	BackgroundColor3 = PANEL,
+	BackgroundTransparency = 0.15,
+	BorderSizePixel = 0,
+	Font = Enum.Font.GothamBold,
+	TextSize = 18,
+	TextColor3 = WHITE,
+	Text = "♪",
+}, screen)
+round(musicButton, 10)
+musicButton.Activated:Connect(function()
+	music.Volume = if music.Volume > 0 then 0 else 0.12
+	musicButton.TextTransparency = if music.Volume > 0 then 0 else 0.6
+	sfx("click")
+end)
+
 local function ratio(value: number): UDim2
 	return UDim2.fromScale(math.clamp(value / 100, 0, 1), 1)
 end
 
 StateEvent.OnClientEvent:Connect(function(state: any)
 	moneyLabel.Text = Logic.money(state.money)
+	if lastMoney and state.money ~= lastMoney then
+		moneyPop(state.money - lastMoney)
+		if state.money > lastMoney then
+			sfx("coin")
+		end
+	end
+	lastMoney = state.money
 	local weather = if state.buran then "буран" else (if state.indoors then "в тепле" else "мороз")
 	timeLabel.Text = `День {state.day} · {state.clock} · {state.temp}° · {weather}`
 	skillLabel.Text = `Казахский {state.kaz} · Код {state.code}` .. (if state.debt > 0 then ` · долг {Logic.money(state.debt)}` else "")
 	warmthBar.Size = ratio(state.warmth)
+	outdoorsCold = not state.indoors and state.warmth < 35
+	if not outdoorsCold then
+		warmthBar.BackgroundColor3 = WARM_COLOR
+	end
+	local share = math.clamp(state.progress or 0, 0, 1)
+	progressName.Text = state.progressName or "Квартира"
+	progressFill.Size = UDim2.fromScale(share, 1)
+	progressLabel.Text = `{math.floor(share * 100)}%`
 	foodBar.Size = ratio(state.food)
 	energyBar.Size = ratio(state.energy)
 	goalLabel.Text = "Цель: " .. state.goal
 
-	target = state.target
+	-- Жёлтая метка — заказ курьера, бирюзовая — следующая цель из подсказки.
+	isGuide = state.target == nil and state.guide ~= nil
+	target = state.target or state.guide
 	if target then
+		local color = if isGuide then GUIDE else GOLD
+		marker.Color = color
+		markerLabel.TextColor3 = color
 		marker.CFrame = CFrame.new(target.x, 30, target.z) * CFrame.Angles(0, 0, math.rad(90))
 		marker.Parent = workspace
 	else
@@ -400,7 +529,7 @@ StateEvent.OnClientEvent:Connect(function(state: any)
 	end
 
 	flakes.Enabled = not state.indoors
-	flakes.Rate = if state.buran then 900 else 220
+	flakes.Rate = if state.buran then 350 else 140
 	flakes.Acceleration = if state.buran then Vector3.new(40, 0, 14) else Vector3.new(3, 0, 1)
 end)
 
@@ -413,6 +542,11 @@ RunService.RenderStepped:Connect(function(dt: number)
 		return
 	end
 	snow.CFrame = CFrame.new(camera.CFrame.Position + Vector3.new(0, 40, 0))
+	if outdoorsCold then
+		-- шкала тепла мигает красным: пора в тепло
+		local pulse = (math.sin(os.clock() * 7) + 1) / 2
+		warmthBar.BackgroundColor3 = WARM_COLOR:Lerp(Color3.fromRGB(255, 40, 40), pulse)
+	end
 	elapsed += dt
 	if elapsed < 0.2 then
 		return
@@ -423,6 +557,10 @@ RunService.RenderStepped:Connect(function(dt: number)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if goal and root and root:IsA("BasePart") then
 		local distance = (Vector3.new(goal.x, root.Position.Y, goal.z) - root.Position).Magnitude
-		markerLabel.Text = `▼ {goal.name} · {math.floor(distance / 3.5)} м`
+		-- метку цели прячем, когда игрок уже пришёл
+		local near = isGuide and distance < 22
+		marker.Transparency = if near then 1 else 0.45
+		markerGui.Enabled = not near
+		markerLabel.Text = if isGuide then `▼ Цель: {goal.name} · {math.floor(distance / 3.5)} м` else `▼ {goal.name} · {math.floor(distance / 3.5)} м`
 	end
 end)

@@ -64,6 +64,26 @@ do
 		local c = Questions.code(rng)
 		check(#c.options == 4 and c.options[c.answer] ~= nil, "вопрос по коду")
 	end
+	for _, make in { Questions.kaz, Questions.code } do
+		for _ = 1, 50 do
+			local used, texts = {}, {}
+			for _ = 1, Config.LESSON_QUESTIONS do
+				local q = make(rng, used)
+				check(not texts[q.text], "вопрос повторился в уроке: " .. q.text)
+				texts[q.text] = true
+			end
+		end
+	end
+	do
+		local used, texts, total = {}, {}, #Questions.CODE
+		for _ = 1, total do
+			local q = Questions.code(rng, used)
+			check(not texts[q.text], "повтор до исчерпания вопросов: " .. q.text)
+			texts[q.text] = true
+		end
+		local extra = Questions.code(rng, used)
+		check(#extra.options == 4 and extra.options[extra.answer] ~= nil, "вопрос после исчерпания списка")
+	end
 	local seen = {}
 	for _, pair in Questions.KAZ do
 		check(not seen[pair[2]], "повтор перевода: " .. pair[2])

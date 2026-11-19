@@ -93,9 +93,35 @@ local function shuffle<T>(list: { T }, rng: Random): { T }
 	return copy
 end
 
-function Questions.kaz(rng: Random): Question
+-- Уже заданные вопросы (по тексту): так в одном уроке вопросы не повторяются.
+export type Used = { [string]: boolean }
+
+-- Выбирает случайный номер из списка, пропуская вопросы из used.
+-- Если не задан ни один свободный вопрос, выбирает из всех. Выбранный вопрос отмечается в used.
+local function pick(count: number, textOf: (number) -> string, rng: Random, used: Used?): number
+	if not used then
+		return rng:NextInteger(1, count)
+	end
+	local free = {}
+	for i = 1, count do
+		if not used[textOf(i)] then
+			table.insert(free, i)
+		end
+	end
+	local index = if #free > 0 then free[rng:NextInteger(1, #free)] else rng:NextInteger(1, count)
+	used[textOf(index)] = true
+	return index
+end
+
+local function kazText(word: string): string
+	return `Как переводится «{word}»?`
+end
+
+function Questions.kaz(rng: Random, used: Used?): Question
 	local pool = Questions.KAZ
-	local index = rng:NextInteger(1, #pool)
+	local index = pick(#pool, function(i)
+		return kazText(pool[i][1])
+	end, rng, used)
 	local pair = pool[index]
 	local options = { pair[2] }
 	while #options < 4 do
@@ -106,14 +132,17 @@ function Questions.kaz(rng: Random): Question
 	end
 	options = shuffle(options, rng)
 	return {
-		text = `Как переводится «{pair[1]}»?`,
+		text = kazText(pair[1]),
 		options = options,
 		answer = table.find(options, pair[2]) :: number,
 	}
 end
 
-function Questions.code(rng: Random): Question
-	local raw = Questions.CODE[rng:NextInteger(1, #Questions.CODE)]
+function Questions.code(rng: Random, used: Used?): Question
+	local pool = Questions.CODE
+	local raw = pool[pick(#pool, function(i)
+		return pool[i][1]
+	end, rng, used)]
 	local correct = raw[2][raw[3]]
 	local options = shuffle(raw[2], rng)
 	return { text = raw[1], options = options, answer = table.find(options, correct) :: number }

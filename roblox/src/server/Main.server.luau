@@ -194,10 +194,11 @@ local function onCooldown(session: Session, key: string, minutes: number): numbe
 end
 
 -- Серия вопросов. Возвращает число верных ответов или nil, если игрок прервал урок.
-local function quiz(player: Player, title: string, count: number, make: (Random) -> Questions.Question): number?
+local function quiz(player: Player, title: string, count: number, make: (Random, Questions.Used?) -> Questions.Question): number?
 	local correct = 0
+	local used: Questions.Used = {}
 	for i = 1, count do
-		local question = make(rng)
+		local question = make(rng, used)
 		local answer = ask(player, `{title} · {i}/{count}`, question.text, question.options)
 		if answer == nil then
 			return if i == 1 then nil else correct
@@ -479,8 +480,9 @@ function actions.interview(player, session)
 	end
 	local correct = 0
 	local makers = { Questions.kaz, Questions.code, Questions.code }
+	local used: Questions.Used = {}
 	for i, make in makers do
-		local question = make(rng)
+		local question = make(rng, used)
 		local answer = ask(player, `Собеседование · {i}/3`, question.text, question.options)
 		if answer == question.answer then
 			correct += 1

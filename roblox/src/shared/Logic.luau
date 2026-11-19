@@ -25,7 +25,8 @@ export type State = {
 	wished: boolean,
 	interviewDay: number,
 	faints: number,
-	milestone: number, -- последняя отмеченная доля пути к квартире, в процентах
+	milestone: number, -- последняя отмеченная доля пути к текущей большой цели, в процентах
+	milestoneStage: string, -- к какой цели относится milestone
 	lastDaily: number, -- номер дня (UTC) последнего ежедневного подарка
 	streak: number,
 	momMoved: boolean,
@@ -55,6 +56,7 @@ function Logic.newState(): State
 		interviewDay = 0,
 		faints = 0,
 		milestone = 0,
+		milestoneStage = "",
 		lastDaily = 0,
 		streak = 0,
 		momMoved = false,
@@ -146,8 +148,8 @@ end
 -- Продвигает потребности на указанное число игровых минут.
 -- Возвращает причину обморока ("cold" | "tired") или nil.
 function Logic.tick(state: State, minutes: number, env: Env): string?
-	state.food = math.max(0, state.food - 0.085 * minutes)
-	local energyDrain = if state.food <= 0 then 0.27 else 0.09
+	state.food = math.max(0, state.food - 0.06 * minutes)
+	local energyDrain = if state.food <= 0 then 0.21 else 0.07
 	state.energy = math.max(0, state.energy - energyDrain * minutes)
 	if env.indoors then
 		state.warmth = math.min(100, state.warmth + 3 * minutes)
@@ -214,8 +216,11 @@ function Logic.newDay(state: State): string
 	local paid = math.min(state.money, Config.RENT)
 	state.money -= paid
 	state.debt += Config.RENT - paid
-	if state.debt > 0 then
+	if paid < Config.RENT then
 		return `День {state.day}. Не хватило на аренду. Долг: {Logic.money(state.debt)}.`
+	end
+	if state.debt > 0 then
+		return `День {state.day}. Аренда оплачена. Старый долг: {Logic.money(state.debt)}.`
 	end
 	return `День {state.day}. Аренда комнаты: −{Logic.money(Config.RENT)}.`
 end
@@ -284,11 +289,11 @@ function Logic.progress(state: State): (number, string)
 	if not state.ownsFlat then
 		return math.clamp(state.money / Config.FLAT_PRICE, 0, 1), "Квартира"
 	end
+	if not state.momMoved then
+		return math.clamp(state.money / Config.MOM_PRICE, 0, 1), "Мама"
+	end
 	if Logic.furnished(state) < #Config.FURNITURE then
 		return Logic.furnished(state) / #Config.FURNITURE, "Мебель"
-	end
-	if not state.momMoved then
-		return math.clamp(state.money / Config.MOM_PRICE, 0, 1), "Мама в Астане"
 	end
 	return 1, "Всё сделано"
 end
@@ -296,9 +301,9 @@ end
 -- Звание игрока: видно над головой и в таблице.
 function Logic.title(state: State): string
 	if state.momMoved then
-		return "Хозяин дома"
+		return "Семья в Астане"
 	elseif state.ownsFlat then
-		return "Новосёл"
+		return "Своя квартира"
 	elseif state.hired then
 		return Logic.itRank(state).name .. "-разработчик"
 	elseif state.deliveries >= 10 then
@@ -324,40 +329,72 @@ function Logic.baristaPay(state: State, correct: number): number
 end
 
 -- Подсказка: что делать дальше. Возвращает текст и здание, к которому ведёт метка.
-function Logic.goalStep(state: State): (string, string?)
-	if state.ownsFlat then
-		local furnished = Logic.furnished(state)
-		if furnished < #Config.FURNITURE then
-			return `Обустрой квартиру: мебель {furnished} из {#Config.FURNITURE} (менеджер в ЖК «Есіл»)`, "flat"
+function Logic.hasPuffer(state: State): boolean
+	return state.items.puffer == true or state.items.pufferN == true
+end
+
+-- Самая дешёвая мебель, которой ещё нет (или nil, если всё куплено).
+function Logic.nextFurniture(state: State): Config.Item?
+	local best: Config.Item? = nil
+	for _, id in Config.FURNITURE do
+		local item = Config.ITEMS[id]
+		if not state.items[id] and (best == nil or item.price < best.price) then
+			best = item
 		end
+	end
+	return best
+end
+
+-- Подсказка: что делать дальше. Возвращает текст и здание, к которому ведёт метка.
+-- Каждый шаг учитывает деньги: если на цель не хватает, подсказка ведёт туда, где заработать.
+function Logic.goalStep(state: State): (string, string?)
+	local money = Logic.money
+	if state.ownsFlat then
 		if not state.momMoved then
 			if state.money >= Config.MOM_PRICE then
-				return "Всё готово! Перевези маму в Астану — поговори с менеджером ЖК", "flat"
+				return "Денег хватает! Перевези маму в Астану — менеджер в ЖК «Есіл»", "flat"
 			end
-			return `Накопи и перевези маму в Астану: {Logic.money(state.money)} из {Logic.money(Config.MOM_PRICE)}`, "it"
+			return `Накопи на переезд мамы в Астану: {money(state.money)} из {money(Config.MOM_PRICE)}`, "it"
 		end
-		return "Мама живёт с тобой в Астане. Ты дома! Құттықтаймыз!", nil
+		local item = Logic.nextFurniture(state)
+		if item then
+			if state.money >= item.price then
+				return `Обустрой дом: мебель {Logic.furnished(state)} из {#Config.FURNITURE} (менеджер в ЖК «Есіл»)`, "flat"
+			end
+			return `Накопи на мебель: {item.name} — {money(item.price)}`, "it"
+		end
+		return "Вы с мамой дома, в Астане. Құттықтаймыз!", nil
 	end
 	if state.debt > 0 then
-		return `Погаси долг за комнату: {Logic.money(state.debt)} (Гульнар-апай, дома)`, "home"
+		if state.money <= 0 then
+			return `Заработай курьером и отдай долг за комнату: {money(state.debt)}`, "depot"
+		end
+		return `Погаси долг за комнату: {money(state.debt)} (Гульнар-апай, дома)`, "home"
 	end
-	if state.deliveries == 0 then
+	if state.deliveries == 0 and state.shifts == 0 and not state.hired then
 		return "Заработай первые деньги: возьми заказ у Даурена в «Курьерской службе»", "depot"
 	end
-	if Logic.warmRating(state) == 0 then
-		return `Купи пуховик на базаре ({Logic.money(Config.ITEMS.puffer.price)}) — на улице мороз`, "bazaar"
+	if not Logic.hasPuffer(state) then
+		local price = Config.ITEMS.puffer.price
+		if state.money < price then
+			return `Накопи на пуховик: {money(state.money)} из {money(price)} — бери заказы у Даурена`, "depot"
+		end
+		return `Купи пуховик на базаре ({money(price)}) — на улице мороз`, "bazaar"
 	end
 	if state.hired then
 		if state.money >= Config.FLAT_PRICE then
 			return "Денег хватает! Купи квартиру в ЖК «Есіл»", "flat"
 		end
-		return `Работай в Qazaq Soft и копи на квартиру: {Logic.money(state.money)} из {Logic.money(Config.FLAT_PRICE)}`, "it"
+		return `Работай в Qazaq Soft и копи на квартиру: {money(state.money)} из {money(Config.FLAT_PRICE)}`, "it"
 	end
 	if Logic.level(state.kazXp) < Config.INTERVIEW_KAZ then
+		if state.money < Config.KAZ_LESSON_PRICE then
+			return `Заработай на урок казахского ({money(Config.KAZ_LESSON_PRICE)}): заказы у Даурена`, "depot"
+		end
 		return `Учи казахский на курсах: уровень {Logic.level(state.kazXp)} из {Config.INTERVIEW_KAZ}`, "school"
 	end
 	if Logic.level(state.codeXp) < Config.INTERVIEW_CODE then
-		return `Учи код в библиотеке: уровень {Logic.level(state.codeXp)} из {Config.INTERVIEW_CODE}`, "library"
+		return `Учи код в библиотеке (бесплатно): уровень {Logic.level(state.codeXp)} из {Config.INTERVIEW_CODE}`, "library"
 	end
 	return "Иди на собеседование в Qazaq Soft на левом берегу", "it"
 end

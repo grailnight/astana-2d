@@ -6,7 +6,8 @@ local Config = {}
 
 Config.SAVE_VERSION = 2
 Config.DATASTORE = "AstanaZhanaOmir_v1"
-Config.LOCK_SECONDS = 300 -- чужая блокировка сохранения считается брошенной через 5 минут
+Config.LOCK_SECONDS = 150 -- чужая блокировка сохранения считается брошенной через 2,5 минуты
+Config.AUTOSAVE_SECONDS = 60 -- автосохранение заодно продлевает блокировку
 
 -- Время: одна игровая минута длится 0.5 секунды, сутки — 12 минут.
 Config.SECONDS_PER_GAME_MINUTE = 0.5
@@ -27,12 +28,13 @@ Config.XP_PER_LEVEL = 100
 Config.MAX_LEVEL = 5
 Config.INTERVIEW_KAZ = 3
 Config.INTERVIEW_CODE = 3
+Config.INTERVIEW_COOLDOWN = 60 -- игровых минут (30 секунд) до новой попытки собеседования
 
 Config.KAZ_LESSON_PRICE = 500
 Config.LESSON_QUESTIONS = 5
-Config.KAZ_XP = 12
-Config.CODE_XP = 10
-Config.CODE_XP_LAPTOP = 15
+Config.KAZ_XP = 15
+Config.CODE_XP = 15
+Config.CODE_XP_LAPTOP = 20
 
 Config.COURIER_BASE = 800
 Config.COURIER_PER_STUD = 6
@@ -61,8 +63,8 @@ Config.DAILY_BASE = 1000
 Config.DAILY_STEP = 500
 Config.DAILY_MAX_STREAK = 6
 
--- После квартиры: обустроить дом и перевезти маму.
-Config.MOM_PRICE = 1500000
+-- После квартиры: перевезти маму, потом обустроить дом.
+Config.MOM_PRICE = 800000
 Config.FURNITURE = { "syrmak", "sofa", "kitchen", "tv", "telescope" }
 
 export type Item = {
@@ -100,7 +102,7 @@ Config.ITEMS = {
 } :: { [string]: Item }
 
 Config.SHOPS = {
-	bazaar = { title = "Базар", text = "Подходи, бауырым, всё свежее!", items = { "samsa", "baursak", "kurt", "ayran", "tea", "ushanka", "puffer" } },
+	bazaar = { title = "Базар", text = "Подходи, бауырым, всё свежее!", items = { "puffer", "ushanka", "samsa", "baursak", "kurt", "ayran", "tea" } },
 	doner = { title = "Шаурма №1", text = "Что будем заказывать?", items = { "doner", "lagman", "tea" } },
 	coffee = { title = "Кофейня «Есіл»", text = "Сәлем! Что приготовить?", items = { "cappuccino", "tea" } },
 	mall = { title = "Хан Шатыр", text = "Добро пожаловать в торговый центр!", items = { "pufferN", "scooter", "laptop", "cappuccino" } },

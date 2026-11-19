@@ -69,6 +69,7 @@ local function label(parent: Instance, text: string, face: Enum.NormalId, textCo
 	text1.Font = Enum.Font.GothamBold
 	text1.TextScaled = true
 	text1.Text = text
+	text1.AutoLocalize = false
 	text1.Parent = gui
 	gui.Parent = parent
 end
@@ -87,6 +88,7 @@ local function nameTag(parent: Instance, text: string, offsetY: number)
 	text1.Font = Enum.Font.GothamBold
 	text1.TextScaled = true
 	text1.Text = text
+	text1.AutoLocalize = false
 	text1.Parent = gui
 	gui.Parent = parent
 end
@@ -98,6 +100,7 @@ local function prompt(parent: Instance, action: string, actionText: string, obje
 	p.HoldDuration = 0
 	p.MaxActivationDistance = 9
 	p.RequiresLineOfSight = false
+	p.AutoLocalize = false
 	p:SetAttribute("Action", action)
 	if arg then
 		p:SetAttribute("Arg", arg)

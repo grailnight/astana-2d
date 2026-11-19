@@ -51,6 +51,7 @@ type Session = {
 	money: IntValue,
 	title: StringValue,
 	tag: TextLabel?,
+	closed: boolean, -- игрок вышел: финальное сохранение уже снимает блокировку
 }
 
 local sessions: { [Player]: Session } = {}
@@ -408,7 +409,7 @@ function actions.studyHome(player, session)
 	study(player, session, Config.CODE_XP_LAPTOP)
 end
 
-function actions.courier(player, session)
+function actions.courier(player, session, reroll: any?)
 	if session.target then
 		local choice = ask(player, "Даурен", `У тебя уже есть заказ: {session.target.name}. Отказаться?`, { "Продолжу доставку", "Отказаться от заказа" })
 		if choice == 2 then
@@ -437,7 +438,7 @@ function actions.courier(player, session)
 		return
 	end
 	local pick = candidates[rng:NextInteger(1, #candidates)]
-	if session.state.deliveries == 0 then
+	if session.state.deliveries == 0 and reroll ~= true then
 		-- первый заказ — ближайший, чтобы первые деньги пришли быстро
 		for _, candidate in candidates do
 			if candidate.distance < pick.distance then
@@ -451,7 +452,7 @@ function actions.courier(player, session)
 		session.target = { x = pick.address.x, z = pick.address.z, name = pick.address.name, pay = pay, startedAt = os.clock(), distance = pick.distance }
 		toast(player, `Доставь посылку: {pick.address.name}. Иди по жёлтой метке.`)
 	elseif choice == 2 then
-		actions.courier(player, session)
+		actions.courier(player, session, true)
 	end
 end
 
@@ -513,15 +514,16 @@ end
 function actions.interview(player, session)
 	local state = session.state
 	if state.hired then
-		say(player, "Жанель", "Ты уже в команде! Рабочее место — справа от входа.")
+		say(player, "Жанель", "Ты уже в команде! Рабочее место — слева от входа.")
 		return
 	end
 	if not Logic.canInterview(state) then
 		say(player, "Жанель", `Нам нужны разработчики со знанием казахского.\nТребования: казахский — уровень {Config.INTERVIEW_KAZ} (у тебя {Logic.level(state.kazXp)}), код — уровень {Config.INTERVIEW_CODE} (у тебя {Logic.level(state.codeXp)}).`)
 		return
 	end
-	if state.interviewDay == state.day then
-		say(player, "Жанель", "Сегодня собеседование уже было. Приходи завтра.")
+	local wait = onCooldown(session, "interview", Config.INTERVIEW_COOLDOWN)
+	if wait > 0 then
+		say(player, "Жанель", `Давай чуть позже: повтори материал и приходи через {math.ceil(wait * Config.SECONDS_PER_GAME_MINUTE)} сек.`)
 		return
 	end
 	local choice = ask(player, "Жанель", "Сәлеметсіз бе! Начнём собеседование? Три вопроса, нужно ответить хотя бы на два.", { "Начать", "Позже" })
@@ -547,8 +549,8 @@ function actions.interview(player, session)
 		toastAll(`{player.DisplayName} теперь разработчик в Qazaq Soft!`, "big")
 		say(player, "Жанель", `Құттықтаймын! Добро пожаловать в команду Qazaq Soft.\nЗа каждую задачу платим {Logic.money(Logic.itPay(state, true))}. После 30 задач — повышение до Middle.`)
 	else
-		state.interviewDay = state.day
-		say(player, "Жанель", "Пока не хватает знаний. Подготовься и приходи завтра.")
+		session.cooldowns.interview = totalMinutes
+		say(player, "Жанель", `Пока не хватает знаний — нужно 2 верных ответа из 3, у тебя {correct}. Попробуй ещё раз через {math.ceil(Config.INTERVIEW_COOLDOWN * Config.SECONDS_PER_GAME_MINUTE)} сек.\nСовет: с ноутбуком из Хан Шатыра можно учиться и работать прямо из дома.`)
 	end
 end
 
@@ -597,12 +599,12 @@ end
 function actions.buyFlat(player, session)
 	local state = session.state
 	if state.ownsFlat then
-		local options = { "Купить мебель", "Перевезти маму в Астану", "Уйти" }
+		local options = { "Перевезти маму в Астану", "Купить мебель", "Уйти" }
 		local choice = ask(player, "Менеджер", `С новосельем! Мебель: {Logic.furnished(state)} из {#Config.FURNITURE}.`, options)
 		if choice == 1 then
-			actions.shop(player, session, "furniture")
-		elseif choice == 2 then
 			actions.moveMom(player, session)
+		elseif choice == 2 then
+			actions.shop(player, session, "furniture")
 		end
 		return
 	end
@@ -619,7 +621,7 @@ function actions.buyFlat(player, session)
 	state.debt = 0
 	FadeEvent:FireClient(player, "Ключи у тебя в руках!", 3)
 	toastAll(`{player.DisplayName}: своя квартира на левом берегу!`, "big")
-	say(player, "Астана: Жаңа өмір", `Всё началось с одной сумки, а теперь у тебя свой дом в столице.\nДней в Астане: {state.day}. Құттықтаймыз!\n\nДальше: обустрой квартиру и перевези маму в Астану.`)
+	say(player, "Астана: Жаңа өмір", `Всё началось с одной сумки, а теперь у тебя свой дом в столице.\nДней в Астане: {state.day}. Құттықтаймыз!\n\nДальше: перевези маму в Астану и обустрой дом.`)
 end
 
 function actions.moveMom(player, session)
@@ -628,15 +630,11 @@ function actions.moveMom(player, session)
 		say(player, "Мама", "Балам, я так горжусь тобой! Чай уже на столе.")
 		return
 	end
-	if Logic.furnished(state) < #Config.FURNITURE then
-		say(player, "Менеджер", `Сначала обустрой квартиру: мебель {Logic.furnished(state)} из {#Config.FURNITURE}. Маме нужен уют!`)
-		return
-	end
 	if state.money < Config.MOM_PRICE then
 		say(player, "Менеджер", `Переезд, билеты и подарки — {Logic.money(Config.MOM_PRICE)}.\nУ тебя: {Logic.money(state.money)}. Осталось {Logic.money(Config.MOM_PRICE - state.money)}.`)
 		return
 	end
-	local choice = ask(player, "Мама", `Балам, ты правда хочешь, чтобы я переехала к тебе? Это {Logic.money(Config.MOM_PRICE)}.`, { "Да, мама, приезжай!", "Чуть позже" })
+	local choice = ask(player, "Менеджер", `Переезд мамы: билеты, вещи и подарки — {Logic.money(Config.MOM_PRICE)}. Оформляем?`, { "Да, зову маму!", "Чуть позже" })
 	if choice ~= 1 or state.money < Config.MOM_PRICE then
 		return
 	end
@@ -644,6 +642,7 @@ function actions.moveMom(player, session)
 	state.momMoved = true
 	FadeEvent:FireClient(player, "Поезд прибывает на вокзал Астаны…", 3)
 	toastAll(`{player.DisplayName}: мама переехала в Астану!`, "big")
+	say(player, "Мама", "Балам, правда можно приехать? Я так соскучилась!")
 	say(player, "Конец истории", `Мама обнимает тебя на перроне.\nОдна сумка, мороз, курьерские заказы — и вот у вас общий дом в столице.\nДней в Астане: {state.day}. Рақмет за игру!`)
 end
 
@@ -763,9 +762,11 @@ local function faint(player: Player, session: Session, reason: string)
 		end
 		local first = state.faints == 0
 		local bill = Logic.faint(state)
-		if session.target then
-			-- заказ не пропадает: путь просто стал длиннее
-			session.target.startedAt = os.clock()
+		local target = session.target
+		if target and hospital then
+			-- заказ не пропадает: путь считаем заново от больницы
+			target.startedAt = os.clock()
+			target.distance = (Vector3.new(target.x, 0, target.z) - Vector3.new(hospital.x, 0, hospital.z)).Magnitude
 		end
 		session.busy = false
 		send(player)
@@ -786,19 +787,28 @@ local function warn1(player: Player, session: Session, key: string, value: numbe
 	end
 end
 
--- Вехи на пути к квартире: каждые 10 % — маленький праздник.
+-- Вехи на пути к большой цели (квартира, мама): каждые 10 % — маленький праздник.
 local function milestones(player: Player, session: Session)
 	local state = session.state
-	if state.ownsFlat or not state.hired then
+	if not state.hired then
 		return
 	end
-	local percent = math.floor(math.clamp(state.money / Config.FLAT_PRICE, 0, 1) * 10) * 10
+	local share, stage = Logic.progress(state)
+	if stage == "Мебель" or stage == "Всё сделано" then
+		return
+	end
+	if state.milestoneStage ~= stage then
+		state.milestoneStage = stage
+		state.milestone = math.floor(share * 10) * 10
+		return
+	end
+	local percent = math.floor(share * 10) * 10
 	if percent > state.milestone and percent < 100 then
 		state.milestone = percent
-		toast(player, `Квартира уже на {percent}% ближе! Так держать.`, "big")
+		toast(player, if stage == "Квартира" then `Квартира уже на {percent}% ближе! Так держать.` else `Переезд мамы: накоплено {percent}%!`, "big")
 	elseif percent >= 100 and state.milestone < 100 then
 		state.milestone = 100
-		toast(player, "Денег хватает на квартиру! Беги в ЖК «Есіл».", "big")
+		toast(player, if stage == "Квартира" then "Денег хватает на квартиру! Беги в ЖК «Есіл»." else "Хватает на переезд мамы! Беги в ЖК «Есіл».", "big")
 	end
 end
 
@@ -814,19 +824,22 @@ local function step(player: Player, session: Session, minutes: number, newDay: b
 	session.indoors = World.indoor(root.Position) ~= nil
 	-- потребности идут и во время диалога, но обморок подождёт, пока игрок не закончит
 	local reason = Logic.tick(state, minutes, { indoors = session.indoors, temp = temperature(), buran = buran })
+	if not session.indoors then
+		warn1(player, session, "chill", state.warmth, if not Logic.hasPuffer(state) then "Холодает! Погрейся в любом здании, а лучше купи пуховик на базаре." else "Холодает. Загляни погреться в любое здание.", 50)
+	end
+	warn1(player, session, "warmth", state.warmth, "Ты замерзаешь! Зайди в любое здание погреться.")
+	warn1(player, session, "food", state.food, "Очень хочется есть. Поешь на базаре или в донерной.")
+	warn1(player, session, "energy", state.energy, "Силы на исходе. Пора поспать дома.")
 	if session.busy then
+		-- пока открыт диалог, в обморок не падаем: шкалы не опускаются ниже 5
+		state.warmth = math.max(state.warmth, 5)
+		state.energy = math.max(state.energy, 5)
 		return
 	end
 	if reason then
 		faint(player, session, reason)
 		return
 	end
-	if not session.indoors then
-		warn1(player, session, "chill", state.warmth, if Logic.warmRating(state) == 0 then "Холодает! Погрейся в любом здании, а лучше купи пуховик на базаре." else "Холодает. Загляни погреться в любое здание.", 50)
-	end
-	warn1(player, session, "warmth", state.warmth, "Ты замерзаешь! Зайди в любое здание погреться.")
-	warn1(player, session, "food", state.food, "Очень хочется есть. Поешь на базаре или в донерной.")
-	warn1(player, session, "energy", state.energy, "Силы на исходе. Пора поспать дома.")
 	milestones(player, session)
 
 	local target = session.target
@@ -836,8 +849,13 @@ local function step(player: Player, session: Session, minutes: number, newDay: b
 			-- защита от телепорта: дойти быстрее, чем позволяет скорость, нельзя
 			local fastest = target.distance / (Logic.walkSpeed(state) * 1.6)
 			if os.clock() - target.startedAt < fastest then
+				if not session.warned.parcel then
+					session.warned.parcel = true
+					toast(player, "Ты на месте! Клиент спускается за посылкой…")
+				end
 				return
 			end
+			session.warned.parcel = nil
 			session.target = nil
 			state.money += target.pay
 			state.deliveries += 1
@@ -876,9 +894,16 @@ local function save(player: Player, session: Session?, release: boolean?)
 	if not session or not session.canSave or not store then
 		return
 	end
+	-- после выхода игрока обычное автосохранение не должно снова ставить блокировку
+	if session.closed and not release then
+		return
+	end
 	pendingSaves += 1
 	local state = session.state
 	for attempt = 1, 3 do
+		if session.closed and not release then
+			break
+		end
 		local ok, err = pcall(function()
 			(store :: DataStore):UpdateAsync("p_" .. player.UserId, function(old)
 				if lockedByOther(old) then
@@ -904,7 +929,9 @@ local function load(player: Player): (boolean, any)
 	if not store then
 		return false, nil
 	end
-	for attempt = 1, 5 do
+	-- если игрок только что вышел с другого сервера, ждём, пока тот допишет сохранение
+	local attempts = 12
+	for attempt = 1, attempts do
 		local busyElsewhere = false
 		local result: any = nil
 		local ok, err = pcall(function()
@@ -914,10 +941,13 @@ local function load(player: Player): (boolean, any)
 					return nil
 				end
 				busyElsewhere = false
-				if type(old) == "table" then
-					result = if type(old.state) == "table" then old.state else old
-				else
+				if type(old) ~= "table" then
 					result = nil
+				elseif old.state ~= nil or old.lock ~= nil then
+					-- новый формат; запись с одной блокировкой и без состояния — это новичок
+					result = if type(old.state) == "table" then old.state else nil
+				else
+					result = old -- старый формат: состояние лежит прямо в записи
 				end
 				return { state = result, lock = { job = game.JobId, t = os.time() } }, { player.UserId }
 			end)
@@ -925,11 +955,11 @@ local function load(player: Player): (boolean, any)
 		if ok and not busyElsewhere then
 			return true, result
 		end
-		if attempt == 5 then
+		if attempt == attempts or (not ok and attempt >= 5) then
 			warn("Не удалось загрузить сохранение: " .. tostring(if ok then "занято другим сервером" else err))
-		else
-			task.wait(if busyElsewhere then 4 else attempt * 2)
+			return false, nil
 		end
+		task.wait(if busyElsewhere then 5 else attempt * 2)
 		if player.Parent ~= Players then
 			return false, nil
 		end
@@ -971,14 +1001,33 @@ local function onCharacter(player: Player, character: Model)
 	send(player)
 end
 
+local function releaseLock(player: Player)
+	if not store then
+		return
+	end
+	pcall(function()
+		(store :: DataStore):UpdateAsync("p_" .. player.UserId, function(old)
+			if type(old) == "table" and type(old.lock) == "table" and old.lock.job == game.JobId then
+				old.lock = nil
+				return old, { player.UserId }
+			end
+			return nil
+		end)
+	end)
+end
+
 local function onPlayer(player: Player)
 	local loaded, saved = load(player)
 	if player.Parent ~= Players then
+		-- ушёл, пока грузилось сохранение: снимаем свою блокировку, чтобы не мешать на другом сервере
+		if loaded then
+			releaseLock(player)
+		end
 		return
 	end
 	if store and not loaded and not IS_STUDIO then
 		-- без загрузки прогресс потом затёр бы старое сохранение: лучше попросить зайти позже
-		player:Kick("Не удалось загрузить сохранение. Зайди через минуту — прогресс цел.")
+		player:Kick("Не удалось загрузить сохранение. Зайди через пару минут — прогресс цел.")
 		return
 	end
 
@@ -1006,6 +1055,7 @@ local function onPlayer(player: Player)
 		money = money,
 		title = title,
 		tag = nil,
+		closed = false,
 	}
 	sessions[player] = session
 
@@ -1029,7 +1079,7 @@ local function onPlayer(player: Player)
 	if saved == nil then
 		task.delay(3, function()
 			flow(player, function()
-				say(player, "Астана: Жаңа өмір", `Ты в столице: с одной сумкой и {Logic.money(state.money)}.\nМечта — своя квартира на левом берегу.\n\nИди за бирюзовой меткой: она всегда ведёт к следующей цели. На улице мороз — в зданиях тепло.`)
+				say(player, "Астана: Жаңа өмір", `Ты в Астане: одна сумка и {Logic.money(state.money)}. Мечта — своя квартира на левом берегу.\n\nБирюзовая метка ведёт к цели, жёлтая — к адресу доставки. Каждое утро в 8:00 — аренда {Logic.money(Config.RENT)}. На улице мороз, в зданиях тепло.`)
 			end)
 		end)
 	elseif gift then
@@ -1047,11 +1097,15 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	local session = sessions[player]
 	sessions[player] = nil
+	if session then
+		session.closed = true
+	end
 	save(player, session, true)
 end)
 
 game:BindToClose(function()
 	for player, session in sessions do
+		session.closed = true
 		task.spawn(save, player, session, true)
 	end
 	-- ждём, пока допишутся все сохранения, включая начатые при выходе игроков
@@ -1063,7 +1117,7 @@ end)
 
 task.spawn(function()
 	while true do
-		task.wait(120)
+		task.wait(Config.AUTOSAVE_SECONDS)
 		for player, session in sessions do
 			task.spawn(save, player, session)
 		end

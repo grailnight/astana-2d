@@ -81,14 +81,34 @@ do
 	end
 	check(Logic.daily(w, 121) == Config.DAILY_BASE + Config.DAILY_STEP * Config.DAILY_MAX_STREAK, "подарок перестаёт расти")
 	w.ownsFlat = true
-	check(string.find(Logic.goal(w), "мебель 0 из", 1, true) and Logic.goalPlace(w) == "flat", "после квартиры — мебель")
+	w.money = 0
+	check(string.find(Logic.goal(w), "переезд мамы", 1, true) and Logic.goalPlace(w) == "it" and Logic.title(w) == "Своя квартира", "после квартиры — копить на переезд мамы")
+	w.money = Config.MOM_PRICE
+	check(Logic.goalPlace(w) == "flat", "хватает на маму — метка ведёт в ЖК")
+	w.momMoved = true
+	w.money = 0
+	check(string.find(Logic.goal(w), "Накопи на мебель", 1, true) and Logic.goalPlace(w) == "it", "потом — мебель, сначала заработать")
+	w.money = 100000
+	check(string.find(Logic.goal(w), "мебель 0 из", 1, true) and Logic.goalPlace(w) == "flat", "на сырмақ хватает — к менеджеру")
 	for _, id in Config.FURNITURE do
 		w.items[id] = true
 	end
-	w.money = 0
-	check(string.find(Logic.goal(w), "маму", 1, true) and Logic.title(w) == "Новосёл", "потом — перевезти маму")
-	w.momMoved = true
-	check(Logic.goalPlace(w) == nil and Logic.title(w) == "Хозяин дома" and select(1, Logic.progress(w)) == 1, "история закончена")
+	check(Logic.goalPlace(w) == nil and Logic.title(w) == "Семья в Астане" and select(1, Logic.progress(w)) == 1, "история закончена")
+	-- цели учитывают деньги
+	local g = Logic.newState()
+	g.deliveries = 1
+	g.money = 5000
+	check(string.find(Logic.goal(g), "Накопи на пуховик", 1, true) and Logic.goalPlace(g) == "depot", "на пуховик не хватает — к Даурену")
+	g.items.ushanka = true
+	check(Logic.goalPlace(g) == "depot", "ушанка не заменяет пуховик")
+	g.money = 20000
+	check(Logic.goalPlace(g) == "bazaar", "хватает на пуховик — на базар")
+	g.items.puffer = true
+	g.money = 100
+	check(string.find(Logic.goal(g), "на урок", 1, true) and Logic.goalPlace(g) == "depot", "на урок не хватает — к Даурену")
+	g.money = 0
+	g.debt = 3000
+	check(Logic.goalPlace(g) == "depot", "долг без денег — сначала заработать")
 	check(Logic.temperature(15, false) > Logic.temperature(3, false), "днём теплее, чем ночью")
 	local dirty = Logic.sanitize({ money = -5, energy = 900, items = { scooter = true, hack = true, samsa = true }, hired = "да", day = 0 / 0 })
 	check(dirty.money == 0 and dirty.energy == 100 and dirty.items.scooter and not dirty.items.hack and not dirty.items.samsa and dirty.hired == false and dirty.day == 1, "очистка сохранения")
@@ -252,11 +272,11 @@ check(state().guide ~= nil and state().guide.name == "Курьерская сл�
 -- базар
 trigger(p1, "shop", "bazaar")
 check(#buttons() == 8, "товары базара: " .. #buttons())
-click(1)
+click(3)
 check(state().money == 14600, "самса куплена: " .. state().money)
-click(7)
+click(1)
 check(state().money == 14600, "на пуховик пока не хватает")
-click(6)
+click(2)
 check(state().money == 12100, "ушанка куплена: " .. state().money)
 click(8)
 check(not shade.Visible, "магазин закрыт")
@@ -272,7 +292,7 @@ m.advance(0.6)
 check(state().target ~= nil, "телепорт к адресу не засчитывается")
 m.advance(12)
 check(state().target == nil and state().money > 12100, "доставка оплачена: " .. state().money)
-check(state().guide ~= nil and state().guide.name ~= "Курьерская служба", "после первой доставки метка ведёт дальше: " .. tostring(state().guide and state().guide.name))
+check(string.find(state().goal, "Накопи на пуховик", 1, true) and state().guide.name == "Курьерская служба", "на пуховик пока не хватает — цель честно ведёт к заказам: " .. state().goal)
 m.advance(2)
 check(shade.Visible and string.find(last(p1, "Dialog").text, "Есть заказ", 1, true), "после доставки сразу предлагают новый заказ")
 click(3)
@@ -435,7 +455,7 @@ remotes.DialogReply.OnServerEvent:Fire(p2, 999, 1)
 remotes.DialogReply.OnServerEvent:Fire(p2, nil, { 1, 2 })
 trigger(p2, "buyFlat")
 answer(p2, "взлом")
-check(not string.find(last(p2, "State").goal, "Обустрой", 1, true), "мусорный ответ не покупает квартиру")
+check(not string.find(last(p2, "State").goal, "переезд мамы", 1, true), "мусорный ответ не покупает квартиру")
 trigger(p2, "buyFlat")
 answer(p2, 1)
 m.advance(1)
@@ -443,19 +463,19 @@ answer(p2, 1)
 m.advance(1)
 local rich = last(p2, "State")
 check(rich.money == 1300000 + Config.IT_PAY - Config.FLAT_PRICE, "квартира оплачена")
-check(string.find(rich.goal, "Обустрой", 1, true) and rich.title == "Новосёл", "квартира куплена, дальше — мебель")
+check(string.find(rich.goal, "переезд мамы", 1, true) and rich.title == "Своя квартира", "квартира куплена, дальше — мама: " .. rich.goal)
 check(sawToast(p1, "своя квартира"), "все игроки видят новость")
 -- мебель и мама
 trigger(p2, "buyFlat")
-answer(p2, 2)
+answer(p2, 1)
 m.advance(0.1)
-check(string.find(last(p2, "Dialog").text, "обустрой", 1, true), "маму — после мебели")
+check(string.find(last(p2, "Dialog").text, "Осталось", 1, true), "на переезд мамы пока не хватает")
 answer(p2, 1)
 trigger(p2, "buyFlat")
-answer(p2, 1)
+answer(p2, 2)
 answer(p2, 1)
 m.advance(0.1)
-check(string.find(last(p2, "State").goal, "мебель 1 из", 1, true), "сырмақ куплен")
+check(last(p2, "State").money == 1300000 + Config.IT_PAY - Config.FLAT_PRICE - Config.ITEMS.syrmak.price, "сырмақ куплен")
 answer(p2, #last(p2, "Dialog").options)
 m.advance(0.1)
 -- издалека кнопки не работают
@@ -477,6 +497,8 @@ check(m.stores[Config.DATASTORE].p_1 ~= nil and m.stores[Config.DATASTORE].p_1.s
 -- игрок ещё сохраняется на другом сервере: этот сервер не загружает старые данные
 m.stores[Config.DATASTORE].p_3 = { state = { money = 777 }, lock = { job = "other-server", t = m.os.time() } }
 local p3 = m.addPlayer("Twin", 3, false)
+m.advance(30)
+check(p3._props.kicked == nil, "сначала ждём, пока другой сервер допишет сохранение")
 m.advance(40)
 check(p3._props.kicked ~= nil, "занятое сохранение — вежливо просим зайти позже")
 check(m.stores[Config.DATASTORE].p_3.state.money == 777 and m.stores[Config.DATASTORE].p_3.lock.job == "other-server", "чужое сохранение не тронуто")

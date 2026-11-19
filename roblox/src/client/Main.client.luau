@@ -86,7 +86,7 @@ local scales: { UIScale } = {}
 local function rescale()
 	local camera = workspace.CurrentCamera
 	if camera then
-		scale.Scale = math.clamp(camera.ViewportSize.Y / 520, 0.62, 1.5)
+		scale.Scale = math.clamp(camera.ViewportSize.Y / 440, 0.8, 1.5)
 		for _, other in scales do
 			other.Scale = scale.Scale
 		end
@@ -443,10 +443,13 @@ local moneyPulse = make("UIScale", {}, moneyLabel)
 local lastMoney: number? = nil
 
 local function moneyPop(delta: number)
+	-- всплывает в правой части панели, чтобы не залезать на подсказку цели
 	local label = text({
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.fromOffset(236, 22),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.fromOffset(222, 22),
 		Size = UDim2.fromOffset(170, 28),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		ZIndex = 3,
 		Font = Enum.Font.GothamBold,
 		TextSize = 22,
 		TextColor3 = if delta > 0 then Color3.fromRGB(130, 235, 140) else Color3.fromRGB(255, 125, 115),
@@ -454,7 +457,7 @@ local function moneyPop(delta: number)
 		Text = (if delta > 0 then "+" else "") .. Logic.money(delta),
 	}, hud)
 	TweenService:Create(label, TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = UDim2.fromOffset(236, -6),
+		Position = UDim2.fromOffset(222, -2),
 		TextTransparency = 1,
 		TextStrokeTransparency = 1,
 	}):Play()
